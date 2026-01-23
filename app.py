@@ -324,35 +324,41 @@ if st.session_state.analysis_result:
             st.markdown("---")
             
 # [수정] 화살표 텍스트 & 형광펜(검은 배경) 제거 코드
-            if method_id in methods:
+if method_id in methods:
                 steps_raw = methods[method_id].split("---")
                 steps = [s.strip() for s in steps_raw if s.strip()]
                 
                 for i, step_text in enumerate(steps):
                     lines = step_text.split('\n')
                     
-                    # 1. 제목 처리: arrow_down 글씨 강제 삭제
-                    raw_title = lines[0].strip().replace('[', '').replace(']', '')
-                    # 대소문자 변형까지 싹 다 지워서 깔끔하게 만듦
-                    for trash in ['arrow_down', 'Arrow_down', ':arrow_down:', '_']:
+                    # 1. [제목 수술] 화살표, STEP 글자, 대괄호 싹 다 제거
+                    raw_title = lines[0].strip()
+                    
+                    # (1) 대괄호 [...] 안에 있는 내용 통째로 삭제 (예: [1단계]) -> STEP 번호랑 겹치니까 삭제
+                    import re
+                    raw_title = re.sub(r'\[.*?\]', '', raw_title)
+                    
+                    # (2) arrow_down, 밑줄, 영문 step 등 지저분한 것들 강제 삭제
+                    trash_list = ['arrow_down', 'Arrow_down', ':arrow_down:', '_', 'STEP', 'step']
+                    for trash in trash_list:
                         raw_title = raw_title.replace(trash, '')
                     
+                    # 남은 제목 깔끔하게 정리
                     title = raw_title.strip()
-                    title = title.replace('$', ' $ ') # 수식 띄어쓰기
+                    title = title.replace('$', ' $ ') 
                     
-                    # 2. 본문 처리: 형광펜(백틱 `)을 수식($)으로 변환
+                    # 2. [본문 수술] 형광펜(백틱 `) -> 수식($)으로 변환하여 검은 박스 제거
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
                     
-                    # 여기가 핵심: ` 기호를 $ 로 바꾸면 검은 배경이 사라지고 흰 수식이 됨
+                    # ★ 핵심: 백틱(`)을 달러($)로 교체 -> 검은 배경 사라짐
                     body_text = body_text.replace('`', '$')
-                    body_text = body_text.replace('$', ' $ ') # 수식 가독성 확보
-                    
+                    body_text = body_text.replace('$', ' $ ') # 수식 앞뒤 띄어쓰기
+
                     # 3. 화면 출력
                     with st.expander(f"STEP {i+1}: {title}", expanded=True):
                         st.markdown(body_text)
                         
-                        # 그래프 버튼
                         if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
                             st.session_state.step_index = i + 1
             else:
