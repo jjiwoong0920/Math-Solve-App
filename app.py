@@ -271,25 +271,21 @@ if st.session_state.analysis_result:
                 for i, step_text in enumerate(steps):
                     lines = step_text.split('\n')
                     
-                    # [Clean-up] 제목 처리: 화살표, 대괄호, 영문 등 강제 삭제
+                    # 1. 제목 정리 (arrow_down 같은 글씨 삭제)
                     raw_title = lines[0].strip()
-                    # (1) 대괄호 [...] 내용 삭제
-                    raw_title = re.sub(r'\[.*?\]', '', raw_title)
-                    # (2) 지저분한 문자열 삭제 리스트
-                    trash_list = ['arrow_down', 'Arrow_down', ':arrow_down:', '_', 'STEP', 'step']
-                    for trash in trash_list:
+                    for trash in ['arrow_down', 'Arrow_down', ':arrow_down:', '_', 'STEP', 'step', '[', ']']:
                         raw_title = raw_title.replace(trash, '')
+                    title = raw_title.strip().replace('$', ' $ ')
                     
-                    title = raw_title.strip()
-                    title = title.replace('$', ' $ ') # 수식 띄어쓰기
-                    
-                    # [Clean-up] 본문 처리: 백틱(`) -> 수식($) 변환 (검은 배경 삭제)
+                    # 2. 본문 정리 (★ 여기가 형광펜 없애는 부분입니다 ★)
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
-                    body_text = body_text.replace('`', '$')
-                    body_text = body_text.replace('$', ' $ ')
                     
-                    # Expander UI
+                    # 핵심: 백틱(`) 기호를 달러($)로 바꿔서 검은 박스를 없애고 수식으로 만듭니다.
+                    body_text = body_text.replace('`', '$')
+                    body_text = body_text.replace('$', ' $ ') 
+                    
+                    # 출력
                     with st.expander(f"STEP {i+1}: {title}", expanded=True):
                         st.markdown(body_text)
                         if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
