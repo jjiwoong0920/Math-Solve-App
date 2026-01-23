@@ -408,3 +408,112 @@ if st.session_state.analysis_result:
         st.error("데이터 처리 중 문제가 발생했습니다.")
         st.write(traceback.format_exc())
 
+# ==========================================
+# ▼▼▼ [새로 추가] 인터랙티브 수학 시각화 모듈 ▼▼▼
+# ==========================================
+import sympy as sp
+
+def interactive_math_lab():
+    st.markdown("---")
+    st.header("🧪 인터랙티브 수학 연구소")
+    st.markdown("함수식을 입력하거나 '예제 문제'를 눌러 그래프를 탐구해보세요.")
+
+    # 1. 상태 관리 (랜덤 문제 생성을 위해)
+    if 'math_expr' not in st.session_state:
+        st.session_state.math_expr = "x**2 - 4*x + 3"
+
+    # 2. 예제 문제 버튼 & 입력창
+    col_input, col_btn = st.columns([3, 1])
+    with col_btn:
+        if st.button("🎲 예제 문제 생성"):
+            import random
+            examples = [
+                "x**2 - 2*x - 3",          # 다항함수
+                "sin(x) + cos(x)",         # 삼각함수
+                "(x + 1) / (x - 2)",       # 유리함수
+                "exp(-x**2)",              # 가우시안
+                "log(x) * sin(x)",         # 초월함수 혼합
+                "a * x**2 + b * x + c"     # 파라미터 포함
+            ]
+            st.session_state.math_expr = random.choice(examples)
+            st.rerun()
+
+    with col_input:
+        expr_input = st.text_input("함수식 입력 f(x) =", value=st.session_state.math_expr, help="예: x**2 + a*x + b (곱하기는 * 사용)")
+
+    # 3. 파싱 및 분석
+    try:
+        x = sp.symbols('x')
+        # 수식 파싱
+        expr = sp.sympify(expr_input)
+        
+        # 변수(파라미터) 추출 (x 제외)
+        free_symbols = sorted(list(expr.free_symbols), key=lambda s: s.name)
+        params = {s: 1.0 for s in free_symbols if s.name != 'x'}
+        
+        # 파라미터 슬라이더 생성 (있을 경우만)
+        if params:
+            st.markdown("### 🎛 파라미터 조절")
+            cols = st.columns(len(params))
+            for i, (sym, val) in enumerate(params.items()):
+                with cols[i]:
+                    params[sym] = st.slider(f"${sym.name}$", -10.0, 10.0, 1.0, 0.1)
+
+        # 파라미터 값 대입한 최종 식
+        final_expr = expr.subs(params)
+        f_func = sp.lambdify(x, final_expr, "numpy")
+        
+        # 4. 화면 분할 (왼쪽: 분석 / 오른쪽: 그래프)
+        col_left, col_right = st.columns([1, 1])
+
+        # [LEFT] 수학적 분석
+        with col_left:
+            st.subheader("📊 수학적 분석 (Analysis)")
+            st.latex(f"f(x) = {sp.latex(final_expr)}")
+
+            # 미분
+            f_prime = sp.diff(final_expr, x)
+            st.markdown("**1. 도함수 (Derivative):**")
+            st.latex(f"f'(x) = {sp.latex(f_prime)}")
+
+            # 해(Roots) 구하기 (실수 범위, 복잡하면 패스)
+            try:
+                roots = sp.solve(final_expr, x)
+                real_roots = [r.evalf() for r in roots if r.is_real]
+                st.markdown("**2. 실근 (Roots):**")
+                if real_roots:
+                    roots_str = ", ".join([f"{r:.2f}" for r in real_roots])
+                    st.write(f"$x \\approx$ {roots_str}")
+                else:
+                    st.write("실근이 없거나 구하기 복잡합니다.")
+            except:
+                st.write("근을 구하는 중 연산 한계에 도달했습니다.")
+
+        # [RIGHT] 그래프 시각화
+        with col_right:
+            st.subheader("📈 그래프 (Visualization)")
+            
+            fig, ax = plt.subplots(figsize=(6, 4))
+            
+            # x축 범위 설정 (근이 있으면 근처로, 없으면 기본값)
+            x_vals = np.linspace(-10, 10, 400)
+            y_vals = f_func(x_vals)
+
+            # 불연속점 처리 (유리함수 등)
+            threshold = 20
+            y_vals[y_vals > threshold] = np.nan
+            y_vals[y_vals < -threshold] = np.nan
+
+            ax.plot(x_vals, y_vals, label=f"${sp.latex(final_expr)}$", color='#2563eb', linewidth=2)
+            ax.axhline(0, color='black', linewidth=0.8)
+            ax.axvline(0, color='black', linewidth=0.8)
+            ax.grid(True, linestyle='--', alpha=0.6)
+            ax.legend()
+            
+            st.pyplot(fig)
+
+    except Exception as e:
+        st.error(f"수식을 해석할 수 없습니다. 문법을 확인해주세요.\n오류 내용: {e}")
+
+# 실행 명령 (앱의 맨 마지막에 이거 한 줄이면 작동합니다)
+interactive_math_lab()
