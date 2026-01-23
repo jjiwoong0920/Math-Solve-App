@@ -283,7 +283,7 @@ if st.session_state.analysis_result:
                     
                     # 핵심: 백틱(`) 기호를 달러($)로 바꿔서 검은 박스를 없애고 수식으로 만듭니다.
                     body_text = body_text.replace('`', '$')
-                    body_text = body_text.replace('$', ' $ ') 
+                    body_text = body_text.replace('$', ' $ ')
                     
                     # 출력
                     with st.expander(f"STEP {i+1}: {title}", expanded=True):
