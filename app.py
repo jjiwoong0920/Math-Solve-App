@@ -317,4 +317,5 @@ if st.session_state.analysis_result:
                 st.info("그래프를 생성하려면 왼쪽에서 단계를 선택하세요.")
 
     except Exception as e:
-        st.error("결과 처리 중 오류가 발생했습니다
+        st.error("결과 처리 중 오류가 발생했습니다.")
+        st.write(e)
