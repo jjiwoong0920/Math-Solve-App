@@ -263,15 +263,15 @@ if uploaded_file and st.session_state.analysis_result is None:
                     
                     status_box.info(f"⚡ {model_name} 모델로 분석 시작...")
                     
-                    # --- [프롬프트 대폭 수정: 가독성 & 띄어쓰기 강조] ---
+# --- [프롬프트 수정: 폰트 크기 및 가독성 지시 강화] ---
                     prompt = """
                     너는 대한민국 1타 수학 강사야. 이 문제를 **3가지 방식**으로 풀이해.
                     
-                   **[제 1원칙: 가독성 (형님 지시사항)]**
+                    **[제 1원칙: 가독성 (형님 지시사항)]**
                     1. **무조건 개조식(Bullet Points) 사용**: 줄글로 길게 쓰지 마. `- ` 기호를 써서 문장을 끊어.
                     2. **줄바꿈 필수**: 내용이 바뀌면 무조건 줄을 바꿔. 벽돌처럼 뭉친 텍스트 절대 금지.
                     3. **수식 강조**: 중요한 계산식은 본문 중간에 끼워넣지 말고, **별도의 줄에 `$$ 수식 $$`** 형태로 써서 강조해.
-                    4. **형광펜/코드 스타일 금지**: 텍스트 중간에 ` `(백틱)을 절대 쓰지 마. 강조가 필요하면 오직 **굵게(Bold)** 처리만 해. 폰트는 무조건 통일되어야 한다.
+                    4. **형광펜/코드 스타일 금지**: 텍스트 중간에 ` `(백틱)을 절대 쓰지 마. 강조가 필요하면 오직 **굵게(Bold)** 처리만 해.
                     
                     **[제 2원칙: 띄어쓰기 (매우 중요)]**
                     1. 인라인 수식 `$수식$`을 쓸 때는 **반드시 앞뒤에 공백**을 넣어. 
@@ -283,9 +283,12 @@ if uploaded_file and st.session_state.analysis_result is None:
                     - Method 2: **빠른 풀이** (실전 스킬)
                     - Method 3: **직관 풀이** (도형/그래프 해석)
                     
-                    **[시각화 코드]**
-                    - `def draw(method, step):` 작성. `figsize=(6, 4)`.
-                    - 폰트 깨짐 방지를 위해 **영어** 텍스트 사용.
+                    **[시각화 코드 규칙 (폰트 크기 엄수)]**
+                    - `def draw(method, step):` 작성. `figsize=(4, 4)`.
+                    - **한글 깨짐 방지를 위해 반드시 영어(English)로 텍스트 출력.**
+                    - **그래프 제목(Title) 폰트 크기는 무조건 16으로 설정.** (`fontsize=16`)
+                    - **그래프 내부 텍스트/좌표(Annotation) 폰트 크기는 무조건 14로 설정.** (`fontsize=14`)
+                    - 중요 포인트(Points)는 눈에 띄는 색(빨강, 파랑 등)으로 강조.
                     
                     **[출력 포맷]**
                     #METHOD_1#
@@ -305,7 +308,10 @@ if uploaded_file and st.session_state.analysis_result is None:
                     #CODE#
                     ```python
                     def draw(method, step):
-                        fig, ax = plt.subplots(figsize=(6, 4))
+                        fig, ax = plt.subplots(figsize=(4, 4))
+                        # 예시: 제목 16, 텍스트 14
+                        ax.set_title(f"Method {method} - Step {step}", fontsize=16)
+                        ax.text(0, 0, "Text", fontsize=14)
                         return fig
                     ```
                     """
@@ -342,51 +348,46 @@ if st.session_state.analysis_result:
         
         col_left, col_right = st.columns([1.2, 1])
         
-        with col_left:
-            st.markdown("### 📘 풀이 방법 선택")
-            selected_method_name = st.radio(
-                "풀이 방법을 선택하세요",
-                ["Method 1: 정석 풀이", "Method 2: 빠른 풀이", "Method 3: 직관 풀이"],
-                label_visibility="collapsed",
-                horizontal=True
-            )
+    with col_left:
+        st.markdown("### 🟦 풀이 방법 선택")
+        selected_method_name = st.radio(
+            "풀이 방법을 선택하세요",
+            ["Method 1: 정석 풀이", "Method 2: 빠른 풀이", "Method 3: 직관 풀이"],
+            label_visibility="collapsed",
+            horizontal=True
+        )
+        
+        # 선택된 번호 추출 (1, 2, 3)
+        method_id = int(selected_method_name.split(":")[0].replace("Method ", ""))
+        st.markdown("---")
+
+        # [수정된 부분] 단계별 설명 출력 (박스 + 폰트 교정)
+        if method_id in methods:
+            steps_raw = methods[method_id].split("---")
+            steps = [s.strip() for s in steps_raw if s.strip()]
             
-            method_id = int(selected_method_name.split(":")[0].replace("Method ", ""))
-            st.markdown("---")
-            
-            if method_id in methods:
-                steps_raw = methods[method_id].split("---")
-                steps = [s.strip() for s in steps_raw if s.strip()]
+            for i, step_text in enumerate(steps):
+                lines = step_text.split('\n')
+                # 제목 처리
+                raw_title = lines[0].strip().replace('[', '').replace(']', '')
+                # 수식 앞뒤 띄어쓰기 (간단 교정)
+                title = raw_title.replace('$', ' $ ')
                 
-                for i, step_text in enumerate(steps):
-                    lines = step_text.split('\n')
-                    title = lines[0].strip().replace('[', '').replace(']', '')
-                    body_lines = lines[1:]
-                    
-                    # 1. 제목 띄어쓰기 교정
-                    title = fix_latex_spacing(title)
-                    
-                    # 카드 헤더 출력
-                    st.markdown(f"""
-                    <div class="step-card">
-                        <span class="step-number">STEP {i+1}</span>
-                        <div class="step-title">{title}</div>
-                    """, unsafe_allow_html=True)
-                    
-                    # 2. 본문 처리
-                    body_text = '\n'.join(body_lines).strip()
-                    body_text = fix_latex_spacing(body_text) # 띄어쓰기 교정
-                    
-                    # 마크다운 렌더링 (가독성을 위해 st.markdown 별도 호출)
+                # 본문 처리
+                body_lines = lines[1:]
+                body_text = '\n'.join(body_lines).strip()
+                # 수식 앞뒤 띄어쓰기 (간단 교정)
+                body_text = body_text.replace('$', ' $ ')
+                
+                # 💡 여기가 핵심: 박스(Expander) 형태로 변경
+                with st.expander(f"STEP {i+1}: {title}", expanded=True):
                     st.markdown(body_text)
                     
-                    # 카드 닫기
-                    st.markdown("</div>", unsafe_allow_html=True)
-                    
-                    if st.button(f"STEP {i+1} 그래프 확인 📊", key=f"btn_{method_id}_{i}"):
+                    # 그래프 확인 버튼을 박스 안으로 이동
+                    if st.button(f"📊 이 단계({i+1}) 그래프 보기", key=f"btn_{method_id}_{i}"):
                         st.session_state.step_index = i + 1
-            else:
-                st.info("이 풀이 방법은 생성되지 않았습니다.")
+        else:
+            st.info("이 풀이 방법은 생성되지 않았습니다.")
 
         with col_right:
             with st.container():
@@ -408,112 +409,4 @@ if st.session_state.analysis_result:
         st.error("데이터 처리 중 문제가 발생했습니다.")
         st.write(traceback.format_exc())
 
-# ==========================================
-# ▼▼▼ [새로 추가] 인터랙티브 수학 시각화 모듈 ▼▼▼
-# ==========================================
-import sympy as sp
 
-def interactive_math_lab():
-    st.markdown("---")
-    st.header("🧪 인터랙티브 수학 연구소")
-    st.markdown("함수식을 입력하거나 '예제 문제'를 눌러 그래프를 탐구해보세요.")
-
-    # 1. 상태 관리 (랜덤 문제 생성을 위해)
-    if 'math_expr' not in st.session_state:
-        st.session_state.math_expr = "x**2 - 4*x + 3"
-
-    # 2. 예제 문제 버튼 & 입력창
-    col_input, col_btn = st.columns([3, 1])
-    with col_btn:
-        if st.button("🎲 예제 문제 생성"):
-            import random
-            examples = [
-                "x**2 - 2*x - 3",          # 다항함수
-                "sin(x) + cos(x)",         # 삼각함수
-                "(x + 1) / (x - 2)",       # 유리함수
-                "exp(-x**2)",              # 가우시안
-                "log(x) * sin(x)",         # 초월함수 혼합
-                "a * x**2 + b * x + c"     # 파라미터 포함
-            ]
-            st.session_state.math_expr = random.choice(examples)
-            st.rerun()
-
-    with col_input:
-        expr_input = st.text_input("함수식 입력 f(x) =", value=st.session_state.math_expr, help="예: x**2 + a*x + b (곱하기는 * 사용)")
-
-    # 3. 파싱 및 분석
-    try:
-        x = sp.symbols('x')
-        # 수식 파싱
-        expr = sp.sympify(expr_input)
-        
-        # 변수(파라미터) 추출 (x 제외)
-        free_symbols = sorted(list(expr.free_symbols), key=lambda s: s.name)
-        params = {s: 1.0 for s in free_symbols if s.name != 'x'}
-        
-        # 파라미터 슬라이더 생성 (있을 경우만)
-        if params:
-            st.markdown("### 🎛 파라미터 조절")
-            cols = st.columns(len(params))
-            for i, (sym, val) in enumerate(params.items()):
-                with cols[i]:
-                    params[sym] = st.slider(f"${sym.name}$", -10.0, 10.0, 1.0, 0.1)
-
-        # 파라미터 값 대입한 최종 식
-        final_expr = expr.subs(params)
-        f_func = sp.lambdify(x, final_expr, "numpy")
-        
-        # 4. 화면 분할 (왼쪽: 분석 / 오른쪽: 그래프)
-        col_left, col_right = st.columns([1, 1])
-
-        # [LEFT] 수학적 분석
-        with col_left:
-            st.subheader("📊 수학적 분석 (Analysis)")
-            st.latex(f"f(x) = {sp.latex(final_expr)}")
-
-            # 미분
-            f_prime = sp.diff(final_expr, x)
-            st.markdown("**1. 도함수 (Derivative):**")
-            st.latex(f"f'(x) = {sp.latex(f_prime)}")
-
-            # 해(Roots) 구하기 (실수 범위, 복잡하면 패스)
-            try:
-                roots = sp.solve(final_expr, x)
-                real_roots = [r.evalf() for r in roots if r.is_real]
-                st.markdown("**2. 실근 (Roots):**")
-                if real_roots:
-                    roots_str = ", ".join([f"{r:.2f}" for r in real_roots])
-                    st.write(f"$x \\approx$ {roots_str}")
-                else:
-                    st.write("실근이 없거나 구하기 복잡합니다.")
-            except:
-                st.write("근을 구하는 중 연산 한계에 도달했습니다.")
-
-        # [RIGHT] 그래프 시각화
-        with col_right:
-            st.subheader("📈 그래프 (Visualization)")
-            
-            fig, ax = plt.subplots(figsize=(6, 4))
-            
-            # x축 범위 설정 (근이 있으면 근처로, 없으면 기본값)
-            x_vals = np.linspace(-10, 10, 400)
-            y_vals = f_func(x_vals)
-
-            # 불연속점 처리 (유리함수 등)
-            threshold = 20
-            y_vals[y_vals > threshold] = np.nan
-            y_vals[y_vals < -threshold] = np.nan
-
-            ax.plot(x_vals, y_vals, label=f"${sp.latex(final_expr)}$", color='#2563eb', linewidth=2)
-            ax.axhline(0, color='black', linewidth=0.8)
-            ax.axvline(0, color='black', linewidth=0.8)
-            ax.grid(True, linestyle='--', alpha=0.6)
-            ax.legend()
-            
-            st.pyplot(fig)
-
-    except Exception as e:
-        st.error(f"수식을 해석할 수 없습니다. 문법을 확인해주세요.\n오류 내용: {e}")
-
-# 실행 명령 (앱의 맨 마지막에 이거 한 줄이면 작동합니다)
-interactive_math_lab()
