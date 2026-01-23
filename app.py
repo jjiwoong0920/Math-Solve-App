@@ -9,7 +9,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (Masterpiece CSS - 앱 초기화 버튼 블랙 확정판)
+# 1. 디자인 & 스타일 (Masterpiece CSS - 최종_진짜_최종.ver)
 # ==========================================
 st.set_page_config(layout="wide", page_title="2호기: 수학의 정점")
 
@@ -47,7 +47,7 @@ st.markdown("""
         border-right: 1px solid #e5e7eb;
     }
     
-    /* [중요] 사이드바 안의 기본 글씨는 흰색 */
+    /* 사이드바 안의 기본 글씨는 흰색 */
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
@@ -58,7 +58,7 @@ st.markdown("""
         border-bottom: 1px solid #e5e7eb !important;
     }
 
-    /* 입력 UI 커스텀 (흰색 배경, 테두리 제거) */
+    /* 입력 UI 커스텀 */
     input[type="text"], input[type="password"], div[data-baseweb="input"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -94,17 +94,22 @@ st.markdown("""
         color: #00C4B4 !important;
     }
     
-    /* [수정됨] 사이드바 버튼 내부의 p 태그(글씨)를 직접 타격하여 검은색 강제 적용 */
+    /* [수정 1] 앱 초기화 버튼: 볼드체 제거(400) + 검은색 유지 */
     section[data-testid="stSidebar"] .stButton button p {
         color: #000000 !important;
-        font-weight: 700 !important;
+        font-weight: 400 !important; /* 굵기: Normal */
     }
-    /* 혹시 p 태그가 아닌 경우를 대비한 2중 안전장치 */
+    /* 혹시 p 태그가 아닌 경우 대비 */
     section[data-testid="stSidebar"] .stButton button {
         color: #000000 !important;
     }
 
-    /* Expander(접이식 박스) 스타일 */
+    /* [수정 2] 분석 중(스피너) 문구 검은색 강제 적용 */
+    div[data-testid="stSpinner"] * {
+        color: #000000 !important;
+    }
+
+    /* Expander 스타일 */
     .streamlit-expanderHeader {
         background-color: #f9fafb !important;
         border-radius: 8px !important;
