@@ -284,10 +284,10 @@ if uploaded_file and st.session_state.analysis_result is None:
                     - Method 3: **직관 풀이** (도형/그래프 해석)
                     
                     **[시각화 코드 규칙 (폰트 크기 엄수)]**
-                    - `def draw(method, step):` 작성. `figsize=(4, 4)`.
+                    - `def draw(method, step):` 작성. `figsize=(6, 6)`.
                     - **한글 깨짐 방지를 위해 반드시 영어(English)로 텍스트 출력.**
                     - **그래프 제목(Title) 폰트 크기는 무조건 16으로 설정.** (`fontsize=16`)
-                    - **그래프 내부 텍스트/좌표(Annotation) 폰트 크기는 무조건 14로 설정.** (`fontsize=14`)
+                    - **그래프 내부 텍스트/좌표(Annotation) 폰트 크기는 무조건 11로 설정.** (`fontsize=11`)
                     - 중요 포인트(Points)는 눈에 띄는 색(빨강, 파랑 등)으로 강조.
                     
                     **[출력 포맷]**
@@ -308,10 +308,10 @@ if uploaded_file and st.session_state.analysis_result is None:
                     #CODE#
                     ```python
                     def draw(method, step):
-                        fig, ax = plt.subplots(figsize=(4, 4))
-                        # 예시: 제목 16, 텍스트 14
+                        fig, ax = plt.subplots(figsize=(6, 6))
+                        # 예시: 제목 16, 텍스트 11
                         ax.set_title(f"Method {method} - Step {step}", fontsize=16)
-                        ax.text(0, 0, "Text", fontsize=14)
+                        ax.text(0, 0, "Text", fontsize=11)
                         return fig
                     ```
                     """
@@ -351,7 +351,7 @@ if st.session_state.analysis_result:
         final_code = code_match.group(1).strip() if code_match else code_part.strip()
         
         # 4. 화면 분할 (왼쪽: 설명 / 오른쪽: 그래프)
-        col_left, col_right = st.columns([1.2, 1])
+        col_left, col_right = st.columns([1. 2, 1])
         
         # === [왼쪽: 설명 창] ===
         with col_left:
@@ -367,30 +367,37 @@ if st.session_state.analysis_result:
             st.markdown("---")
             
             # 단계별 설명 출력 (박스형 UI)
-            if method_id in methods:
-                steps_raw = methods[method_id].split("---")
-                steps = [s.strip() for s in steps_raw if s.strip()]
+# [수정된 부분] 화살표 삭제 & 형광펜 제거 버전
+        if method_id in methods:
+            steps_raw = methods[method_id].split("---")
+            steps = [s.strip() for s in steps_raw if s.strip()]
+            
+            for i, step_text in enumerate(steps):
+                lines = step_text.split('\n')
                 
-                for i, step_text in enumerate(steps):
-                    lines = step_text.split('\n')
-                    # 제목 처리
-                    raw_title = lines[0].strip().replace('[', '').replace(']', '')
-                    title = raw_title.replace('$', ' $ ')
+                # 1. 제목 처리 (대괄호 제거 + arrow_down 글자 삭제)
+                raw_title = lines[0].strip().replace('[', '').replace(']', '')
+                raw_title = raw_title.replace('arrow_down', '').replace(':arrow_down:', '').replace('_', ' ')
+                title = raw_title.replace('$', ' $ ').strip()
+                
+                # 2. 본문 처리 (형광펜 ` 제거 -> 수식 $ 변환)
+                body_lines = lines[1:]
+                body_text = '\n'.join(body_lines).strip()
+                
+                # 핵심: ` (백틱)을 $ (달러)로 바꿔서 검은 배경을 없애고 수식으로 변환
+                body_text = body_text.replace('`', '$')
+                body_text = body_text.replace('$', ' $ ') # 수식 앞뒤 띄어쓰기 확보
+                
+                # 3. 접이식 박스 출력
+                with st.expander(f"STEP {i+1}: {title}", expanded=True):
+                    st.markdown(body_text)
                     
-                    # 본문 처리
-                    body_lines = lines[1:]
-                    body_text = '\n'.join(body_lines).strip()
-                    body_text = body_text.replace('$', ' $ ')
-                    
-                    # 접이식 박스(Expander) 적용
-                    with st.expander(f"STEP {i+1}: {title}", expanded=True):
-                        st.markdown(body_text)
-                        if st.button(f"📊 이 단계({i+1}) 그래프 보기", key=f"btn_{method_id}_{i}"):
-                            st.session_state.step_index = i + 1
+                    if st.button(f"📊 이 단계({i+1}) 그래프 보기", key=f"btn_{method_id}_{i}"):
+                        st.session_state.step_index = i + 1
             else:
                 st.info("이 풀이 방법은 생성되지 않았습니다.")
 
-        # === [오른쪽: 그래프 창] ===
+# === [오른쪽: 그래프 창] ===
         with col_right:
             with st.container():
                 st.markdown(f"### 📐 실시간 시각화 (Method {method_id} - Step {st.session_state.step_index})")
@@ -401,7 +408,13 @@ if st.session_state.analysis_result:
                     
                     if "draw" in exec_globals:
                         fig = exec_globals["draw"](method_id, st.session_state.step_index)
-                        st.pyplot(fig)
+                        
+                        # [수정] 양옆에 투명 벽을 세워서 사이즈를 강제로 50%로 줄임
+                        # 비율 조절: [1(왼쪽공백) : 3(그래프) : 1(오른쪽공백)]
+                        _, c_graph, _ = st.columns([1, 3, 1])
+                        with c_graph:
+                            st.pyplot(fig)
+                            
                     else:
                         st.error("시각화 함수(draw)를 찾을 수 없습니다.")
                 except Exception as e:
