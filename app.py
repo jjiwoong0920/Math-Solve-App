@@ -9,7 +9,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (Masterpiece CSS)
+# 1. 디자인 & 스타일 (Masterpiece CSS - 앱 초기화 버튼 블랙 버전)
 # ==========================================
 st.set_page_config(layout="wide", page_title="2호기: 수학의 정점")
 
@@ -43,11 +43,11 @@ st.markdown("""
 
     /* 사이드바 스타일 (민트색 배경) */
     section[data-testid="stSidebar"] {
-        background-color: #00C4B4 !important; /* 형님의 민트색 */
+        background-color: #00C4B4 !important;
         border-right: 1px solid #e5e7eb;
     }
     section[data-testid="stSidebar"] * {
-        color: #ffffff !important; /* 사이드바 글씨 흰색/검은색 조정 */
+        color: #ffffff !important;
     }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 {
         color: #ffffff !important;
@@ -81,7 +81,7 @@ st.markdown("""
         font-weight: 700 !important;
     }
     
-    /* 버튼 스타일 */
+    /* 버튼 스타일 (기본) */
     .stButton > button {
         background-color: white;
         border: 1px solid #d1d5db;
@@ -93,6 +93,12 @@ st.markdown("""
         background-color: #f3f4f6;
         border-color: #00C4B4;
         color: #00C4B4 !important;
+    }
+    
+    /* [수정됨] 사이드바 안의 버튼(앱 초기화)만 강제로 검은색 적용 */
+    section[data-testid="stSidebar"] .stButton > button {
+        color: #000000 !important; /* 리얼 블랙 */
+        font-weight: 600 !important;
     }
 
     /* Expander(접이식 박스) 스타일 */
@@ -213,7 +219,14 @@ if uploaded_file and st.session_state.analysis_result is None:
         if st.button("🚀 3가지 관점으로 완벽 분석 시작", type="primary"):
             with st.spinner("🕵️ 1타 강사의 시선으로 분석 중입니다..."):
                 try:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # [수정] 모델 이름을 고정하지 않고, 현재 사용 가능한 최신 모델(Flash/Pro)을 자동으로 찾습니다.
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    
+                    # 1순위: Flash (빠름), 2순위: Pro (똑똑함), 3순위: 아무거나
+                    model_name = next((m for m in available_models if 'flash' in m), 
+                                      next((m for m in available_models if 'pro' in m), available_models[0]))
+                    
+                    model = genai.GenerativeModel(model_name)
                     
                     prompt = """
                     너는 대한민국 1타 수학 강사야. 이 문제를 **3가지 방식**으로 풀이해.
