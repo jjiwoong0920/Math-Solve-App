@@ -8,7 +8,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (Sticky Graph - Height Fix)
+# 1. 디자인 & 스타일 (Sticky Graph - 1호기의 구출 작전)
 # ==========================================
 st.set_page_config(layout="wide", page_title="최승규 2호기 - 순정")
 
@@ -59,33 +59,32 @@ st.markdown("""
     }
     
     /* ====================================================================
-       [1호기의 눈물] 스크롤 따라오기 (Sticky) - 높이 압축 기술
+       [형님 구출 코드] 스크롤 따라오기 (Sticky) - 잠금 해제 버전
        ==================================================================== */
     
-    /* 1. 가로 배치 컨테이너(Row)가 자식 높이를 억지로 늘리지 못하게 함 */
+    /* 1. 최상위 부모들의 스크롤 잠금(overflow: hidden/auto)을 해제하여 sticky가 먹히게 함 */
+    [data-testid="stAppViewContainer"], [data-testid="stMainBlock"] {
+        overflow: visible !important;
+    }
+    
+    /* 2. 가로 배치 컨테이너가 자식 높이를 억지로 늘리지 못하게 함 (필수) */
     [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
 
-    /* 2. 'sticky-target' 표식이 있는 오른쪽 컬럼을 타겟팅 */
+    /* 3. 'sticky-target' 표식이 있는 오른쪽 컬럼을 타겟팅 */
+    /* top: 5rem은 화면 상단 메뉴바(약 3~4rem)를 피해서 고정하는 위치입니다 */
     div[data-testid="column"]:has(#sticky-target) {
-        position: fixed !important; /* 이번엔 sticky 대신 fixed로 강제할 수도 있지만, sticky로 갑니다 */
         position: -webkit-sticky !important;
         position: sticky !important;
-        top: 5rem !important;
-        z-index: 100 !important;
+        top: 5rem !important; 
         
-        /* [핵심] 높이를 강제로 '내용물 크기'만큼만 잡게 해서 움직일 공간 확보 */
+        /* [핵심] 높이를 내용물만큼만 잡아야 움직일 공간이 생김 */
         height: fit-content !important; 
-        min-height: auto !important;
         
+        z-index: 100 !important;
         overflow: visible !important;
         display: block !important;
-    }
-    
-    /* 3. 혹시 모를 내부 iframe/div의 높이 간섭 제거 */
-    div[data-testid="column"]:has(#sticky-target) > div {
-        height: auto !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -133,7 +132,7 @@ if st.session_state.analysis_result is None:
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
-            # [프롬프트 유지] 2:1 레이아웃, 글씨크기 9px, 그래프 단순화
+            # [프롬프트 수정] 글씨 겹침 방지 명령 추가
             prompt = """
             너는 대한민국 1타 수학 강사야. 이 문제를 학생에게 설명하듯이 **3가지 방식**으로 친절하고 명확하게 풀이해줘.
 
@@ -152,13 +151,15 @@ if st.session_state.analysis_result is None:
             - 코드는 `#CODE_START#` 와 `#CODE_END#` 로 감싸줘.
             - 함수 이름: `def draw(method):`
             - **[중요 1]** 각 Method의 '최종 결과(Final State)' 그래프 하나만 그려. (중간 과정 X)
-            - `figsize=(6, 6)` 고정.
+            - `figsize=(6, 6)` 고정. (절대 변경 금지)
             - 한글 대신 영어 사용.
             - **[중요 2 - 표현 규칙]**:
                 - **그래프(함수)**인 경우: 주요 **점의 좌표**와 **그래프 식**만 표시해.
                 - **도형(기하)**인 경우: **변의 길이**, **각의 크기**, **보조선**만 표시해.
                 - 그 외 불필요한 요소(복잡한 격자, 너무 많은 눈금 등)는 제거해서 깔끔하게 해.
-            - **[중요 3 - 글씨 크기]**: 그래프 내부의 모든 텍스트(좌표, 식, 각도, 길이 등)는 **반드시 `fontsize=9`로 통일**해.
+            - **[중요 3 - 글씨 크기 및 겹침 방지]**: 
+                - 그래프 내부의 모든 텍스트(좌표, 식 등)는 **반드시 `fontsize=9`로 통일**해.
+                - **텍스트가 서로 겹치거나 선에 가려지지 않도록**, `plt.text`나 `annotate`를 쓸 때 좌표에 **약간의 오프셋(offset)을 주거나 정렬(ha, va)을 조정**해서 가독성을 높여. (예: 점의 오른쪽 위, 또는 아래에 배치)
             
             자, 바로 # Method 1부터 시작해.
             """
