@@ -157,32 +157,37 @@ if uploaded_file and st.session_state.analysis_result is None:
                     
                     prompt = """
                     너는 대한민국 1타 수학 강사야. 이 문제를 **3가지 방식**으로 풀이해.
-                    
-                    **[제 1원칙: 가독성 및 형식]**
-                    1. **개조식 사용**: 문장은 `-` 로 시작하고 간결하게 끊어.
-                    2. **수식 강조**: 중요 수식은 별도 줄에 `$$ 수식 $$` 사용.
-                    3. **텍스트 스타일**: 코드 블록(```)이나 백틱(`)을 텍스트 강조용으로 쓰지 마. 오직 **Bold**만 사용.
-                    4. **띄어쓰기**: `$수식$` 앞뒤는 반드시 띄어쓰기 (예: 값이 $x$ 다).
-                    
+
+                    **[제 1원칙: 절대 금지 사항 (Strict Rules)]**
+                    1. **화살표 금지**: 텍스트에 `arrow_down`, `↓`, `->` 같은 기호나 단어를 절대 쓰지 마.
+                    2. **형광/코드블록 금지**: 백틱(`)이나 코드블록(```)을 텍스트 강조용으로 쓰면 죽어. 오직 **Bold**만 사용.
+                    3. **단계 명시 금지**: 제목에 'Step 1', '1단계'라고 쓰지 마. (시스템이 자동으로 붙임)
+
+                    **[제 2원칙: 형식 및 가독성]**
+                    1. **수식 필수**: 모든 수식, 변수, 숫자는 무조건 LaTeX 포맷($...$)을 사용. (예: $f(x) = x^2$)
+                    2. **개조식**: 문장은 `-` 로 시작.
+                    3. **구분선 필수**: 단계(Step)가 끝날 때마다 반드시 `---` 만 있는 줄을 넣어. (이걸로 단계를 나눔)
+
                     **[풀이 구성]**
                     - Method 1: **정석 풀이** (논리적 서술)
                     - Method 2: **빠른 풀이** (실전 스킬)
                     - Method 3: **직관 풀이** (도형/그래프 해석)
-                    
-                    **[시각화 코드 규칙 (엄수)]**
+
+                    **[시각화 코드 규칙]**
                     - `def draw(method, step):` 작성.
-                    - **figsize=(6, 6)으로 고정할 것.** (정사각형 비율 유지)
+                    - **figsize=(6, 6) 고정.**
+                    - **축 끝에 화살표 그리기 금지.** (단순 선만 사용)
                     - **한글 깨짐 방지를 위해 반드시 영어(English)로 텍스트 출력.**
-                    - **그래프 제목 폰트 크기: 16, 내부 텍스트: 12.**
-                    - 중요 포인트는 빨강/파랑 색상 활용.
-                    
-                    **[출력 포맷]**
+
+                    **[출력 포맷 예시]**
                     #METHOD_1#
-                    [1단계 제목]
+                    제목 (예: 점 A, B의 좌표 설정)
                     - 설명...
-                    $$수식$$
+                    $$ 수식 $$
                     ---
-                    [2단계 제목]
+                    제목 (예: 두 번째 단계)
+                    - 설명...
+                    ---
                     ...
                     #METHOD_2#
                     ...
@@ -244,31 +249,37 @@ if st.session_state.analysis_result:
             st.markdown("---")
             
             if method_id in methods:
+                # 1. 구분선(---)으로 단계 분리
                 steps_raw = methods[method_id].split("---")
                 steps = [s.strip() for s in steps_raw if s.strip()]
                 
                 for i, step_text in enumerate(steps):
                     lines = step_text.split('\n')
                     
-                    # [수정할 부분] 여기서부터 ---
+                    # 제목 추출 (첫 줄)
                     raw_title = lines[0].strip()
-                    # 제목에서 불필요한 기호 제거
-                    clean_title = re.sub(r'(?i)(arrow_down|:arrow_down:|_|step|\[.*?\]|#)', '', raw_title).strip()
                     
-                    # 본문 내용 정리
+                    # [청소] 제목에 껴있는 arrow, step, :arrow_down: 등 찌꺼기 제거
+                    clean_title = re.sub(r'(?i)(arrow_down|:arrow_down:|arrow|\s*\|\s*|_|step\s*\d*|단계|\[.*?\]|#)', '', raw_title).strip()
+                    # 혹시 제목이 비어있으면 임의로 채움
+                    if not clean_title: clean_title = "풀이 단계"
+
+                    # 본문 추출 (둘째 줄부터)
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
                     
-                    # [중요] 1. 백틱(`) 제거 (형광펜 효과 삭제)
-                    # 2. LaTeX 수식($) 렌더링 보정을 위해 $ 앞뒤 공백 확보
-                    # 3. 불필요한 코드 블록 기호 제거
-                    body_text = body_text.replace('`', '').replace('```', '')
-                    # 수식($)이 붙어있으면 렌더링 안될 수 있으므로 띄어쓰기 주입 (단, $$는 유지)
-                    body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text)
-                    # --- 여기까지 교체
+                    # [청소] 본문에 남아있는 arrow 텍스트 및 백틱(`) 제거
+                    body_text = re.sub(r'(?i)(arrow_down|:arrow_down:)', '', body_text) # arrow 글자 삭제
+                    body_text = body_text.replace('`', '').replace('```', '') # 형광펜(백틱) 삭제
                     
+                    # [보정] LaTeX 수식($) 렌더링을 위해 앞뒤 공백 주입 (수식 깨짐 방지)
+                    body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text) 
+                    
+                    # UI 출력 (Step 1, Step 2... 는 여기서 자동 생성)
                     with st.expander(f"STEP {i+1}: {clean_title}", expanded=True):
-                        st.markdown(body_text) # 이제 Latex가 적용된 텍스트가 나옴
+                        st.markdown(body_text)
+                        
+                        # 그래프 버튼
                         if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
                             st.session_state.step_index = i + 1
             else:
