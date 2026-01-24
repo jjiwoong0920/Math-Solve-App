@@ -8,7 +8,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (Sticky Graph Fixed)
+# 1. 디자인 & 스타일 (Sticky Graph - Target Lock)
 # ==========================================
 st.set_page_config(layout="wide", page_title="최승규 2호기 - 순정")
 
@@ -18,7 +18,7 @@ st.markdown("""
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     * { font-family: 'Pretendard', sans-serif !important; }
     
-    /* [기존 유지] 텍스트 스타일 (16px) */
+    /* [기존 유지] 텍스트 스타일 */
     .stMarkdown p, .stMarkdown li {
         font-size: 16px !important;
         line-height: 1.8 !important;
@@ -36,7 +36,7 @@ st.markdown("""
         letter-spacing: -0.5px !important;
     }
     
-    /* [기존 유지] 기타 컴포넌트 */
+    /* [기존 유지] 기타 스타일 */
     .katex { font-size: 1.1em !important; color: inherit !important; }
     
     .stButton > button {
@@ -59,17 +59,21 @@ st.markdown("""
     }
     
     /* ====================================================================
-       [진짜_최종_수정] 스크롤 따라오기 (Sticky) - 정밀 타격 버전 (유지)
+       [1호기의 필살기] 스크롤 따라오기 (Sticky) - 표식 추적 방식
        ==================================================================== */
+    
+    /* 1. 컬럼들을 감싸는 부모가 높이를 억지로 늘리지 못하게 막음 (필수) */
     [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
 
-    [data-testid="stMainBlock"] > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]:nth-child(1) > [data-testid="column"]:nth-child(2) {
+    /* 2. 'sticky-target'이라는 ID를 가진 자식을 품고 있는 컬럼을 찾아서 고정! */
+    /* :has() 선택자는 최신 브라우저에서 지원하는 강력한 기능입니다. */
+    div[data-testid="column"]:has(#sticky-target) {
         position: -webkit-sticky !important;
         position: sticky !important;
-        top: 5rem !important;
-        z-index: 100 !important;
+        top: 5rem !important; /* 상단 여백 */
+        z-index: 999 !important;
         overflow: visible !important;
         height: auto !important;
         display: block !important;
@@ -120,7 +124,6 @@ if st.session_state.analysis_result is None:
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
-            # [프롬프트 수정] 그래프 표현 방식 및 글씨 크기 지침 추가
             prompt = """
             너는 대한민국 1타 수학 강사야. 이 문제를 학생에게 설명하듯이 **3가지 방식**으로 친절하고 명확하게 풀이해줘.
 
@@ -134,7 +137,7 @@ if st.session_state.analysis_result is None:
                - **# Method 2: 빠른 풀이** (실전 스킬)
                - **# Method 3: 직관 풀이** (도형/그래프 해석)
 
-            **[그래프 코드 요청 - 매우 중요]**
+            **[그래프 코드 요청]**
             풀이 맨 마지막에 **반드시** 그래프를 그리는 Python 코드를 작성해.
             - 코드는 `#CODE_START#` 와 `#CODE_END#` 로 감싸줘.
             - 함수 이름: `def draw(method):`
@@ -187,15 +190,18 @@ if st.session_state.analysis_result:
         text_content = text_content[match.start():]
 
     # ==========================================
-    # 화면 레이아웃 (2:1 비율 변경)
+    # 화면 레이아웃 (2:1 비율)
     # ==========================================
-    # [요청 1 반영] 텍스트(2) : 그래프(1) 비율
     col_text, col_graph = st.columns([2, 1])
     
     with col_text:
         st.markdown(text_content)
         
     with col_graph:
+        # [핵심] 여기에 보이지 않는 닻(Anchor)을 심습니다.
+        # CSS는 이 ID(#sticky-target)가 있는 컬럼을 찾아서 고정시킵니다.
+        st.markdown('<div id="sticky-target"></div>', unsafe_allow_html=True)
+        
         # [Sticky 적용됨]
         st.markdown("### 📐 그래프 시각화")
         
