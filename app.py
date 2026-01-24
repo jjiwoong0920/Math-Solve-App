@@ -46,16 +46,15 @@ st.markdown("""
     section[data-testid="stSidebar"] * { color: #ffffff !important; }
 
     /* ====================================================================
-       [챗지피티가 해결해준 스크롤 따라오기 (Sticky)]
+       [그래프 위치 긴급 수정] 스크롤 따라오기 + 상단 정렬
        ==================================================================== */
     
-    /* 1. 가로 컨테이너가 자식 높이를 억지로 늘리지 않게 함 (Stretch 해제) */
-    /* 이걸 flex-start로 해야 오른쪽 기둥이 짧아져서 sticky가 먹힙니다 */
+    /* 1. 가로 컨테이너가 자식 높이를 억지로 늘리지 않게 함 (필수) */
     [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
 
-    /* 2. Sticky 타겟을 아주 촘촘하게 설정 (버전 내성 강화) */
+    /* 2. Sticky 타겟 설정 (그래프 기둥) */
     div[data-testid="stVerticalBlockBorderWrapper"]:has(#sticky-anchor),
     div[data-testid="stVerticalBlock"]:has(#sticky-anchor),
     div[data-testid="column"]:has(#sticky-anchor),
@@ -65,9 +64,13 @@ st.markdown("""
         top: 5rem !important; /* 상단 메뉴바 아래에 고정 */
         z-index: 1000 !important;
         
+        /* [핵심 수정] 기둥 내부의 그래프가 바닥으로 꺼지지 않게 '위로 정렬' 강제 */
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        
         height: fit-content !important;
         align-self: flex-start !important; 
-        display: block !important;
     }
 </style>
 """, unsafe_allow_html=True)
