@@ -76,11 +76,6 @@ st.markdown("""
         background-color: transparent !important;
         color: #000000 !important;
     }
-    /* 선택된 버튼 색상 (빨간색) */
-    div[data-testid="stRadio"] label[data-baseweb="radio"] input:checked + div > div {
-        background-color: #ef4444 !important;
-        border-color: #ef4444 !important;
-    }
     
     .stButton > button {
         background-color: white;
@@ -180,23 +175,23 @@ if uploaded_file and st.session_state.analysis_result is None:
                     너는 대한민국 1타 수학 강사야. 이 문제를 **3가지 방식**으로 풀이해.
 
                     **[제 1원칙: 절대 금지 사항 (Strict Rules)]**
-                    1. **화살표 금지**: 텍스트에 `arrow_down`, `↓`, `->` 같은 기호나 단어를 절대 쓰지 마.
-                    2. **형광/코드블록 금지**: 백틱(`)이나 코드블록(```)을 텍스트 강조용으로 쓰면 죽어. 오직 **Bold**만 사용.
+                    1. **화살표 금지**: 텍스트에 `arrow_down`, `↓`, `->` 등 화살표를 뜻하는 어떤 기호나 단어도 쓰지 마.
+                    2. **형광/코드블록 금지**: 백틱(`)이나 코드블록(```)을 텍스트 강조용으로 쓰지 마. 오직 **Bold**만 사용.
                     3. **단계 명시 금지**: 제목에 'Step 1', '1단계'라고 쓰지 마. (시스템이 자동으로 붙임)
 
                     **[제 2원칙: 형식 및 가독성]**
                     1. **수식 필수**: 모든 수식, 변수, 숫자는 무조건 LaTeX 포맷($...$)을 사용. (예: $f(x) = x^2$)
                     2. **개조식**: 문장은 `-` 로 시작.
-                    3. **구분선 필수**: 단계(Step)가 끝날 때마다 반드시 `---` 만 있는 줄을 넣어. (이걸로 단계를 나눔)
+                    3. **구분선 필수**: 단계(Step)가 끝날 때마다 반드시 `---` 만 있는 줄을 넣어.
 
                     **[풀이 구성]**
                     - Method 1: **정석 풀이** (논리적 서술)
                     - Method 2: **빠른 풀이** (실전 스킬)
                     - Method 3: **직관 풀이** (도형/그래프 해석)
 
-                    **[시각화 코드 규칙]**
+                    **[시각화 코드 규칙 (엄수)]**
                     - `def draw(method, step):` 작성.
-                    - **figsize=(6, 6) 고정.**
+                    - **figsize=(6, 6)으로 고정할 것.** (절대 다른 사이즈로 변경 금지)
                     - **축 끝에 화살표 그리기 금지.** (단순 선만 사용)
                     - **한글 깨짐 방지를 위해 반드시 영어(English)로 텍스트 출력.**
 
@@ -204,7 +199,7 @@ if uploaded_file and st.session_state.analysis_result is None:
                     #METHOD_1#
                     제목 (예: 점 A, B의 좌표 설정)
                     - 설명...
-                    $$ 수식 $$
+                    $$수식$$
                     ---
                     제목 (예: 두 번째 단계)
                     - 설명...
@@ -216,9 +211,15 @@ if uploaded_file and st.session_state.analysis_result is None:
                     ...
                     #CODE#
                     ```python
+                    import matplotlib.pyplot as plt
+                    import matplotlib.patches as patches
+                    import numpy as np
+
                     def draw(method, step):
+                        # [중요] 사이즈는 무조건 (6, 6)으로 고정
                         fig, ax = plt.subplots(figsize=(6, 6))
                         ax.set_title(f"Method {method} - Step {step}", fontsize=16)
+                        # ... 그래프 그리는 코드 ...
                         return fig
                     ```
                     """
@@ -277,29 +278,30 @@ if st.session_state.analysis_result:
                 for i, step_text in enumerate(steps):
                     lines = step_text.split('\n')
                     
-                    # 제목 추출 (첫 줄)
+                    # 제목과 본문 1차 분리
                     raw_title = lines[0].strip()
-                    
-                    # [청소 1] 제목에서 arrow, step, 단계, 특수기호 싹 다 제거
-                    # (?i): 대소문자 무시
-                    # arrow[^ ]*: arrow로 시작하는 단어 (arrow_down, arrowstyle 등)
-                    # :[^:]*arrow[^:]*:: 콜론(:) 사이에 arrow가 들어간 이모지
-                    # [↓→]: 화살표 기호
-                    clean_title = re.sub(r'(?i)(arrow[^ ]*|:[^:]*arrow[^:]*:|[↓→]|\s*\|\s*|_|step\s*\d*|단계|\[.*?\]|#)', '', raw_title).strip()
-                    if not clean_title: clean_title = "풀이 단계"
-
-                    # 본문 추출
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
                     
-                    # [청소 2] 본문에 남은 arrow 텍스트 제거
-                    body_text = re.sub(r'(?i)(arrow[^ ]*|:[^:]*arrow[^:]*:|[↓→])', '', body_text)
+                    # ==================================================
+                    # [최종 청소기 가동] 이 부분에서 강제로 다 지웁니다.
+                    # ==================================================
+                    # 삭제할 패턴 정의 (arrow 변종들, 특수기호)
+                    junk_pattern = r'(?i)(arrow[^ ]*|:[^:]*arrow[^:]*:|[↓→]|\s*\|\s*|_|step\s*\d*|단계|\[.*?\]|#)'
                     
-                    # [청소 3] 백틱(`) 제거 (형광펜 효과 삭제)
-                    body_text = body_text.replace('`', '').replace('```', '')
+                    # 1. 제목 청소
+                    clean_title = re.sub(junk_pattern, '', raw_title).strip()
+                    if not clean_title: clean_title = "풀이 단계"
+
+                    # 2. 본문 청소 (arrow 삭제)
+                    body_text = re.sub(junk_pattern, '', body_text)
                     
-                    # [보정] LaTeX 수식($) 렌더링을 위해 앞뒤 공백 주입 (수식 깨짐 방지)
-                    body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text) 
+                    # 3. 형광펜(백틱) 완전 삭제
+                    body_text = body_text.replace('```', '').replace('`', '')
+                    
+                    # 4. LaTeX 수식 보정 ($ 앞뒤 띄어쓰기)
+                    body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text)
+                    # ==================================================
                     
                     # UI 출력 (Step 1, Step 2... 는 여기서 자동 생성)
                     with st.expander(f"STEP {i+1}: {clean_title}", expanded=True):
