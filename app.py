@@ -8,23 +8,25 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (스크롤 고정 & 오류 박멸 최종판)
+# 1. 디자인 & 스타일 (제목 복구 & 스크롤 고정 최종)
 # ==========================================
 st.set_page_config(layout="wide", page_title="최승규 2호기 - 순정")
 
 st.markdown("""
 <style>
-    /* 폰트 설정 */
+    /* 폰트 설정 (유지) */
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     * { font-family: 'Pretendard', sans-serif !important; }
     
-    /* 텍스트 스타일 */
+    /* 텍스트 스타일 (유지) */
     .stMarkdown p, .stMarkdown li {
         font-size: 16px !important;
         line-height: 1.8 !important;
         color: inherit !important;
         margin-bottom: 1em !important;
     }
+    
+    /* 제목 스타일 (유지) */
     h1, h2, h3 {
         font-size: 20px !important; 
         font-weight: 700 !important;
@@ -32,38 +34,43 @@ st.markdown("""
         margin-top: 1.5em !important;
         margin-bottom: 0.5em !important;
     }
+    
+    /* 기타 스타일 (유지) */
     .katex { font-size: 1.1em !important; color: inherit !important; }
     section[data-testid="stSidebar"] { background-color: #00C4B4 !important; }
     section[data-testid="stSidebar"] * { color: #ffffff !important; }
 
     /* ====================================================================
-       [생존 코드] 스크롤 따라오기 (Sticky) - Stretch 해제 기술
+       [형님 생존 코드] 스크롤 따라오기 (Sticky) - 잠금 해제
        ==================================================================== */
     
-    /* 1. 최상위 스크롤 잠금 해제 */
+    /* 1. 최상위 뷰 컨테이너 설정 */
+    /* overflow: clip이나 scroll을 줘야 sticky가 부모 높이를 인식합니다 */
     [data-testid="stAppViewContainer"] {
         overflow-y: scroll !important;
         overflow-x: hidden !important;
     }
+    
+    /* 2. 메인 블록 오버플로우 해제 */
+    [data-testid="stMainBlock"] {
+        overflow: visible !important;
+    }
 
-    /* 2. [핵심 원인 해결] 가로 컨테이너가 자식들을 억지로 늘리지 않게 함 */
-    /* 이걸 flex-start로 해야, 짧은 그래프 기둥이 늘어나지 않고 sticky가 먹힙니다 */
+    /* 3. 좌우 컬럼 키 맞추기(Stretch) 금지 -> 이게 핵심입니다. */
+    /* 이걸 해야 오른쪽 그래프 기둥이 짧아져서 따라올 공간이 생깁니다. */
     [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
 
-    /* 3. 오른쪽(2번째) 컬럼을 화면 상단에 고정 */
-    /* position: sticky와 top: 5rem이 이제야 제대로 작동할 겁니다 */
-    div[data-testid="column"]:nth-of-type(2) {
+    /* 4. 오른쪽(2번째) 컬럼 타겟팅 및 고정 */
+    /* div[data-testid="column"]:has(#sticky-anchor) 선택자 사용 */
+    div[data-testid="column"]:has(#sticky-anchor) {
         position: -webkit-sticky !important;
         position: sticky !important;
-        top: 5rem !important; /* 상단 메뉴바 아래에 착! */
-        
+        top: 5rem !important; /* 상단 여백 */
         z-index: 1000 !important;
-        
-        /* 높이를 내용물만큼만 잡음 (늘어나지 않음) */
         height: fit-content !important;
-        align-self: start !important; 
+        display: block !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -108,30 +115,33 @@ if st.session_state.analysis_result is None:
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
-            # [프롬프트] ValueError 방지 & 기존 요구사항 유지
+            # [프롬프트 수정] 제목 원래대로 복구 ("정석 풀이" 등 포함)
             prompt = """
             너는 대한민국 1타 수학 강사야. 이 문제를 학생에게 설명하듯이 **3가지 방식**으로 친절하고 명확하게 풀이해줘.
 
             **[작성 원칙]**
-            1. **시작**: 서론, 인사말 절대 금지. **무조건 '# Method 1'로 시작해.**
-            2. **구조**: # Method 1 (정석), # Method 2 (빠른), # Method 3 (직관)
+            1. **시작**: 서론, 인사말 절대 금지. **무조건 '# Method 1: 정석 풀이'로 시작해.**
+            2. **구조 (제목 정확히 지킬 것)**:
+               - **# Method 1: 정석 풀이** (논리적 서술)
+               - **# Method 2: 빠른 풀이** (실전 스킬)
+               - **# Method 3: 직관 풀이** (도형/그래프 해석)
             3. **형식**: LaTeX($...$) 사용, 개조식(-), 'Step' 단어 금지.
 
-            **[그래프 코드 요청 - 오류 절대 금지]**
+            **[그래프 코드 요청 - 오류 방지 및 스타일]**
             풀이 맨 마지막에 **반드시** 그래프를 그리는 Python 코드를 작성해.
             - 코드는 `#CODE_START#` 와 `#CODE_END#` 로 감싸줘.
             - 함수 이름: `def draw():` (인자 없음)
             
-            **[Python 코드 작성 시 절대 주의사항 (엄수)]**
-            1. **[ValueError 방지]**: Numpy 배열을 `if array:` 조건문에 바로 쓰지 마! 
-               - 반드시 `if array.size > 0:` 또는 `if len(array) > 0:` 처럼 명확하게 써.
+            **[Python 코드 작성 시 절대 주의사항]**
+            1. **[ValueError 방지]**: Numpy 배열을 `if array:` 조건문에 바로 쓰지 마. 
+               - 반드시 `if array.size > 0:` 또는 `if len(array) > 0:` 사용.
             2. **비율 고정**: `ax.set_aspect('equal')` 필수.
             3. **크기**: `plt.figure(figsize=(6, 6))`
             4. **식 표시**: 그래프 식은 범례 대신 선 근처에 텍스트로 표시 (Offset 사용).
             5. **글씨 크기**: `fontsize=9` 통일.
             6. **언어**: 영어(English)만 사용.
             
-            자, 바로 # Method 1부터 시작해.
+            자, 바로 # Method 1: 정석 풀이부터 시작해.
             """
             
             response = model.generate_content([prompt, image])
@@ -163,7 +173,8 @@ if st.session_state.analysis_result:
     # 세탁
     text_content = text_content.replace("`", "")
     text_content = text_content.replace("arrow_down", "")
-    match = re.search(r'(#+\s*Method\s*1|\*{2}Method\s*1|Method\s*1:)', text_content, re.IGNORECASE)
+    # Method 1 앞의 군더더기 제거 (정규식 강화)
+    match = re.search(r'(#+\s*Method\s*1.*)', text_content, re.IGNORECASE)
     if match:
         text_content = text_content[match.start():]
 
@@ -174,7 +185,9 @@ if st.session_state.analysis_result:
         st.markdown(text_content)
         
     with col_graph:
-        # 제목
+        # [Sticky Anchor] - CSS가 이 ID를 찾아서 고정합니다
+        st.markdown('<div id="sticky-anchor"></div>', unsafe_allow_html=True)
+        
         st.markdown("### 📐 최종 시각화")
         
         if code_content:
@@ -186,13 +199,12 @@ if st.session_state.analysis_result:
                 
                 if "draw" in exec_globals:
                     fig = exec_globals["draw"]()
-                    # 강제 늘림 방지 (정사각형 유지)
+                    # 강제 늘림 방지 (정사각형 비율 유지)
                     st.pyplot(fig, use_container_width=False)
                 else:
                     st.warning("그래프 함수를 찾을 수 없습니다.")
             except Exception as e:
-                # 에러 메시지를 좀 더 부드럽게 출력
-                st.error("그래프 생성 중 코드가 꼬였습니다. 다시 시도해주세요.")
+                st.error("그래프 생성 중 오류가 발생했습니다.")
                 st.write(e)
         else:
             st.info("시각화 코드가 생성되지 않았습니다.")
