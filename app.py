@@ -8,7 +8,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (형님이 주신 코드 100% 유지)
+# 1. 디자인 & 스타일 (형님이 원하신 1.png 코드 + 챗지피티 스크롤 고정)
 # ==========================================
 st.set_page_config(layout="wide", page_title="최승규 2호기")
 
@@ -35,7 +35,7 @@ st.markdown("""
         margin-bottom: 0.5em !important;
     }
     
-    /* 수식 폰트 크기 (형님이 원하신 1.1em 적용) */
+    /* 수식 폰트 크기 (유지) */
     .katex { 
         font-size: 1.1em !important; 
         line-height: 1.5 !important;
@@ -46,17 +46,16 @@ st.markdown("""
     section[data-testid="stSidebar"] * { color: #ffffff !important; }
 
     /* ====================================================================
-       [형님이 주신 완벽한 스크롤 고정 CSS]
+       [챗지피티가 해결해준 스크롤 따라오기 (Sticky)]
        ==================================================================== */
     
-    /* 1. 강제 스크롤 설정 삭제됨 (유지) */
-
-    /* 2. 가로 컨테이너가 자식 높이를 억지로 늘리지 않게 함 (필수 유지) */
+    /* 1. 가로 컨테이너가 자식 높이를 억지로 늘리지 않게 함 (Stretch 해제) */
+    /* 이걸 flex-start로 해야 오른쪽 기둥이 짧아져서 sticky가 먹힙니다 */
     [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
 
-    /* 3. Sticky 타겟 설정 (유지) */
+    /* 2. Sticky 타겟을 아주 촘촘하게 설정 (버전 내성 강화) */
     div[data-testid="stVerticalBlockBorderWrapper"]:has(#sticky-anchor),
     div[data-testid="stVerticalBlock"]:has(#sticky-anchor),
     div[data-testid="column"]:has(#sticky-anchor),
@@ -113,7 +112,7 @@ if st.session_state.analysis_result is None:
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
-            # [수정 1] 본문 줄바꿈 강제 명령 추가
+            # [프롬프트 유지]
             prompt = """
             너는 대한민국 1타 수학 강사야. 이 문제를 학생에게 설명하듯이 **3가지 방식**으로 친절하고 명확하게 풀이해줘.
 
@@ -127,9 +126,6 @@ if st.session_state.analysis_result is None:
                - LaTeX($...$) 사용.
                - **[핵심] 분수는 무조건 `\\dfrac` (Display Fraction) 사용.** (글씨 크게)
                - 개조식(-), 'Step' 단어 금지.
-            4. **[줄바꿈 필수 - 매우 중요]**: 
-               - 가독성을 위해 **모든 문장이 끝날 때마다(마침표 뒤) 무조건 줄바꿈**을 해. 
-               - 절대 문장을 옆으로 이어서 쓰지 마. (엔터 두 번 쳐서 간격 벌려도 좋아)
 
             **[그래프 코드 요청 - 오류 절대 금지]**
             풀이 맨 마지막에 **반드시** 그래프를 그리는 Python 코드를 작성해.
@@ -177,8 +173,7 @@ if st.session_state.analysis_result:
     # 세탁
     text_content = text_content.replace("`", "")
     text_content = text_content.replace("arrow_down", "")
-    # Method 1 앞의 잡설 제거 (정규식)
-    match = re.search(r'(#+\s*Method\s*1.*)', text_content, re.IGNORECASE)
+    match = re.search(r'(#+\s*Method\s*1|\*{2}Method\s*1|Method\s*1:)', text_content, re.IGNORECASE)
     if match:
         text_content = text_content[match.start():]
 
@@ -203,14 +198,12 @@ if st.session_state.analysis_result:
                 
                 if "draw" in exec_globals:
                     fig = exec_globals["draw"]()
-                    # [수정 2] 그래프 크기 원상복구 (1.png처럼 꽉 차게)
-                    # use_container_width=True로 변경하여 컬럼 너비에 맞춤
-                    st.pyplot(fig, use_container_width=True)
+                    # 강제 늘림 방지 (정사각형 유지) - 형님 코드 그대로 유지
+                    st.pyplot(fig, use_container_width=False)
                 else:
                     st.warning("그래프 함수를 찾을 수 없습니다.")
             except Exception as e:
-                # 에러 메시지를 좀 더 부드럽게 출력
-                st.error("그래프 생성 중 코드가 꼬였습니다. 다시 시도해주세요.")
+                st.error("그래프 생성 중 오류가 발생했습니다.")
                 st.write(e)
         else:
             st.info("시각화 코드가 생성되지 않았습니다.")
