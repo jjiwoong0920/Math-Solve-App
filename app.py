@@ -8,7 +8,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (Sticky Graph - Target Lock)
+# 1. 디자인 & 스타일 (Sticky Graph - Height Fix)
 # ==========================================
 st.set_page_config(layout="wide", page_title="최승규 2호기 - 순정")
 
@@ -59,24 +59,33 @@ st.markdown("""
     }
     
     /* ====================================================================
-       [1호기의 필살기] 스크롤 따라오기 (Sticky) - 표식 추적 방식
+       [1호기의 눈물] 스크롤 따라오기 (Sticky) - 높이 압축 기술
        ==================================================================== */
     
-    /* 1. 컬럼들을 감싸는 부모가 높이를 억지로 늘리지 못하게 막음 (필수) */
+    /* 1. 가로 배치 컨테이너(Row)가 자식 높이를 억지로 늘리지 못하게 함 */
     [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
 
-    /* 2. 'sticky-target'이라는 ID를 가진 자식을 품고 있는 컬럼을 찾아서 고정! */
-    /* :has() 선택자는 최신 브라우저에서 지원하는 강력한 기능입니다. */
+    /* 2. 'sticky-target' 표식이 있는 오른쪽 컬럼을 타겟팅 */
     div[data-testid="column"]:has(#sticky-target) {
+        position: fixed !important; /* 이번엔 sticky 대신 fixed로 강제할 수도 있지만, sticky로 갑니다 */
         position: -webkit-sticky !important;
         position: sticky !important;
-        top: 5rem !important; /* 상단 여백 */
-        z-index: 999 !important;
+        top: 5rem !important;
+        z-index: 100 !important;
+        
+        /* [핵심] 높이를 강제로 '내용물 크기'만큼만 잡게 해서 움직일 공간 확보 */
+        height: fit-content !important; 
+        min-height: auto !important;
+        
         overflow: visible !important;
-        height: auto !important;
         display: block !important;
+    }
+    
+    /* 3. 혹시 모를 내부 iframe/div의 높이 간섭 제거 */
+    div[data-testid="column"]:has(#sticky-target) > div {
+        height: auto !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -124,6 +133,7 @@ if st.session_state.analysis_result is None:
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
+            # [프롬프트 유지] 2:1 레이아웃, 글씨크기 9px, 그래프 단순화
             prompt = """
             너는 대한민국 1타 수학 강사야. 이 문제를 학생에게 설명하듯이 **3가지 방식**으로 친절하고 명확하게 풀이해줘.
 
@@ -137,7 +147,7 @@ if st.session_state.analysis_result is None:
                - **# Method 2: 빠른 풀이** (실전 스킬)
                - **# Method 3: 직관 풀이** (도형/그래프 해석)
 
-            **[그래프 코드 요청]**
+            **[그래프 코드 요청 - 매우 중요]**
             풀이 맨 마지막에 **반드시** 그래프를 그리는 Python 코드를 작성해.
             - 코드는 `#CODE_START#` 와 `#CODE_END#` 로 감싸줘.
             - 함수 이름: `def draw(method):`
@@ -190,7 +200,7 @@ if st.session_state.analysis_result:
         text_content = text_content[match.start():]
 
     # ==========================================
-    # 화면 레이아웃 (2:1 비율)
+    # 화면 레이아웃 (2:1 비율 유지)
     # ==========================================
     col_text, col_graph = st.columns([2, 1])
     
@@ -198,8 +208,7 @@ if st.session_state.analysis_result:
         st.markdown(text_content)
         
     with col_graph:
-        # [핵심] 여기에 보이지 않는 닻(Anchor)을 심습니다.
-        # CSS는 이 ID(#sticky-target)가 있는 컬럼을 찾아서 고정시킵니다.
+        # [핵심] 닻(Anchor) 심기 - CSS가 이놈을 찾아서 고정합니다.
         st.markdown('<div id="sticky-target"></div>', unsafe_allow_html=True)
         
         # [Sticky 적용됨]
