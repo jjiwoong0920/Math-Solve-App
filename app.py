@@ -271,15 +271,30 @@ if st.session_state.analysis_result:
             st.markdown("---")
             
             if method_id in methods:
-                # 1. 먼저 전체 텍스트에서 '백틱(`)'과 'arrow'를 싹 다 지우고 시작합니다. (가장 확실한 방법)
-                # 형광펜 원인(백틱) 제거
-                clean_full_text = methods[method_id].replace('`', '').replace('```', '')
-                
-                # arrow 글자(이모지 코드 포함) 제거 정규식
-                # :arrow_down:, arrow, ->, ↓ 등을 찾아서 공백으로 바꿈
-                clean_full_text = re.sub(r'(?i)(:?arrow[a-z_0-9]*:?|[↓→])', '', clean_full_text)
+                # 1. 원본 텍스트 가져오기
+                raw_text = methods[method_id]
 
-                # 2. 깨끗해진 텍스트를 단계(---)별로 나눕니다.
+                # ==========================================================
+                # [필터링 구역 1: 형광펜(백틱) 박멸]
+                # ==========================================================
+                # 백틱(`)이 하나라도 있으면 무조건 삭제. (이게 형광의 원인입니다)
+                # 코드 블록(```)도 함께 날아갑니다.
+                text_no_highlight = raw_text.replace('```', '').replace('`', '')
+
+                # ==========================================================
+                # [필터링 구역 2: Arrow 박멸]
+                # ==========================================================
+                # 스크린샷에 보인 .arrow_down 처럼 앞에 점이나 특수문자가 붙은 것까지 다 잡습니다.
+                # (?i) : 대소문자 무시
+                # [\.:#_]* : 앞에 붙은 점, 콜론, 샵, 언더바
+                # arrow : 핵심 단어
+                # [a-z0-9_]* : 뒤에 붙는 단어 (_down, _up 등)
+                # [↓→] : 화살표 특수기호
+                arrow_pattern = r'(?i)([\.:#_]*arrow[a-z0-9_]*[\.:#_]*|[↓→])'
+                
+                clean_full_text = re.sub(arrow_pattern, '', text_no_highlight)
+
+                # 3. 깨끗해진 텍스트를 단계(---)별로 분리
                 steps_raw = clean_full_text.split("---")
                 steps = [s.strip() for s in steps_raw if s.strip()]
                 
@@ -291,12 +306,11 @@ if st.session_state.analysis_result:
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
                     
-                    # [제목 청소] 혹시 남아있을 수 있는 잡동사니(step, #, 괄호 등) 제거
+                    # [제목 2차 청소] step, 단계, #, 대괄호 같은 찌꺼기 제거
                     clean_title = re.sub(r'(?i)(step\s*\d*|단계|\[.*?\]|#)', '', raw_title).strip()
                     if not clean_title: clean_title = "풀이 과정"
 
-                    # [수식 보정] LaTeX($) 렌더링을 위해 $ 앞뒤에 강제로 공백 주입
-                    # (이게 없으면 수식이 텍스트랑 붙어서 깨져 보임)
+                    # [수식 보정] LaTeX($) 렌더링을 위해 $ 앞뒤에 공백 강제 주입
                     body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text)
                     
                     # UI 출력
