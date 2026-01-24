@@ -152,7 +152,7 @@ if uploaded_file and st.session_state.analysis_result is None:
         if st.button("🚀 3가지 관점으로 완벽 분석 시작", type="primary"):
             with st.spinner("🕵️ 1타 강사의 시선으로 분석 중입니다..."):
                 try:
-                    # [최종 확정] Gemini 2.5 Flash 사용
+                    # [최종 확정] 무조건 Gemini 2.5 Flash 사용. 딴 거 안 씀.
                     model = genai.GenerativeModel('gemini-2.5-flash')
                     
                     prompt = """
@@ -163,7 +163,6 @@ if uploaded_file and st.session_state.analysis_result is None:
                     2. **수식 강조**: 중요 수식은 별도 줄에 `$$ 수식 $$` 사용.
                     3. **텍스트 스타일**: 코드 블록(```)이나 백틱(`)을 텍스트 강조용으로 쓰지 마. 오직 **Bold**만 사용.
                     4. **띄어쓰기**: `$수식$` 앞뒤는 반드시 띄어쓰기 (예: 값이 $x$ 다).
-                    5. **금지어**: `arrow_down`, `step`, `_` 같은 단어는 절대로 사용하지 마.
                     
                     **[풀이 구성]**
                     - Method 1: **정석 풀이** (논리적 서술)
@@ -203,6 +202,7 @@ if uploaded_file and st.session_state.analysis_result is None:
                     st.rerun()
                     
                 except Exception as e:
+                    # 429 에러(과속) 발생 시 경고
                     if "429" in str(e):
                         st.error("🚨 구글 무료 서버 사용량이 꽉 찼습니다. (1분당 20회 제한)")
                         st.warning("약 1분 정도만 기다렸다가 다시 버튼을 눌러주세요!")
@@ -248,24 +248,19 @@ if st.session_state.analysis_result:
                 steps = [s.strip() for s in steps_raw if s.strip()]
                 
                 for i, step_text in enumerate(steps):
-                    # [강력한 청소 시작]
-                    # 1. 전체 텍스트에서 백틱(`)을 달러($)로 변환 (형광펜 제거의 핵심)
-                    clean_text = step_text.replace('`', '$')
+                    lines = step_text.split('\n')
                     
-                    # 2. 화살표 및 잡동사니 단어 제거 (수식 안이든 밖이든 무조건 삭제)
-                    for trash in ['arrow_down', ':arrow_down:', '_', 'step', 'STEP']:
-                        clean_text = re.sub(r'(?i)' + re.escape(trash), '', clean_text)
+                    # [청소] 화살표, 대괄호, 잡동사니 삭제
+                    raw_title = lines[0].strip()
+                    import re
+                    clean_title = re.sub(r'(?i)(arrow_down|:arrow_down:|_|step|\[.*?\])', '', raw_title).strip()
                     
-                    # 3. 수식($) 앞뒤로 띄어쓰기 추가 (가독성 확보)
-                    clean_text = clean_text.replace('$', ' $ ')
+                    # [청소] 백틱(`) -> 달러($) 변환 (형광펜 제거)
+                    body_lines = lines[1:]
+                    body_text = '\n'.join(body_lines).strip()
+                    body_text = body_text.replace('`', '$').replace('$', ' $ ')
                     
-                    # 4. 제목과 본문 분리
-                    lines = clean_text.strip().split('\n')
-                    # 제목에서 대괄호[...] 제거
-                    title = re.sub(r'\[.*?\]', '', lines[0]).strip()
-                    body_text = '\n'.join(lines[1:]).strip()
-                    
-                    with st.expander(f"STEP {i+1}: {title}", expanded=True):
+                    with st.expander(f"STEP {i+1}: {clean_title}", expanded=True):
                         st.markdown(body_text)
                         if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
                             st.session_state.step_index = i + 1
