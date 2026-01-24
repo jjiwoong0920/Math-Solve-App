@@ -18,7 +18,7 @@ st.markdown("""
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     * { font-family: 'Pretendard', sans-serif !important; }
     
-    /* [기존 유지] 본문 텍스트 스타일 */
+    /* [기존 유지] 텍스트 스타일 */
     .stMarkdown p, .stMarkdown li {
         font-size: 16px !important;
         line-height: 1.8 !important;
@@ -26,7 +26,7 @@ st.markdown("""
         margin-bottom: 1em !important;
     }
     
-    /* [기존 유지] 제목(Method 1, 2, 3) 스타일 (20px, Bold) */
+    /* [기존 유지] 제목 스타일 (20px, Bold) */
     h1, h2, h3 {
         font-size: 20px !important; 
         font-weight: 700 !important;
@@ -36,7 +36,7 @@ st.markdown("""
         letter-spacing: -0.5px !important;
     }
     
-    /* [기존 유지] 수식, 버튼, 사이드바 스타일 */
+    /* [기존 유지] 기타 스타일 */
     .katex { font-size: 1.1em !important; color: inherit !important; }
     
     .stButton > button {
@@ -59,25 +59,30 @@ st.markdown("""
     }
     
     /* ====================================================================
-       [여기만 바꿨습니다] 스크롤 따라오기 (Sticky) 강력 적용 코드
+       [최종 수정] 스크롤 따라오기 (Sticky) - 강력 버전
        ==================================================================== */
     
-    /* 1. 가로 배치 컨테이너(Row)가 자식(컬럼)의 높이를 강제로 늘리지 않도록 설정 */
-    /* 이걸 해제해야(flex-start) 움직일 공간이 생깁니다. */
-    div[data-testid="stHorizontalBlock"] {
+    /* 1. 컬럼을 감싸는 부모 컨테이너가 자식들을 억지로 늘리지 않게 함 */
+    [data-testid="stVerticalBlock"] > [style*="flex-direction: row"],
+    [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] {
         align-items: flex-start !important;
     }
-    
-    /* 2. 두 번째 컬럼(오른쪽 그래프 영역)을 화면 상단에 고정 */
-    /* 'top: 5rem'은 화면 맨 위에서 약간 띄워서 고정한다는 뜻입니다. */
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(2) {
+
+    /* 2. 오른쪽 컬럼(2번째 자식)을 화면 상단에 고정 */
+    /* div[data-testid="column"] 이 선택자가 핵심입니다. */
+    div[data-testid="column"]:nth-of-type(2) {
         position: -webkit-sticky !important;
         position: sticky !important;
-        top: 5rem !important; 
-        z-index: 100;
-        /* 내용물이 잘리지 않도록 설정 */
+        top: 4rem !important; /* 상단 메뉴바 감안해서 4rem 띄움 */
+        z-index: 999 !important;
+        
+        /* 내용물이 잘리지 않게 설정 */
         height: auto !important;
+        max-height: 100vh !important;
         overflow: visible !important;
+        
+        /* 배경이 투명하면 글씨랑 겹치니 살짝 배경색을 줍니다 (선택사항) */
+        /* background-color: var(--background-color) !important; */
     }
 </style>
 """, unsafe_allow_html=True)
