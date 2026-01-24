@@ -111,7 +111,7 @@ if not uploaded_file:
 image = Image.open(uploaded_file)
 
 if st.session_state.analysis_result is None:
-    with st.spinner("🕵️‍♂️ 사이트 운영비가 큽니다. 수강생 전용으로만 부탁합니다. 최승규식 풀이라 수강생이 아닌 경우, 도움이 되지 않을 수도 있습니다. 문제푸는 데 오래 걸릴 수 있으니 다른 문제 풀고 계세요."):
+    with st.spinner("[부탁말씀] 사이트 운영비가 큽니다. 수강생 전용으로만 부탁합니다. 최승규식 풀이라 수강생이 아닌 경우, 별로 도움이 되지 않을 수도 있습니다. 문제푸는 데 오래 걸릴 수 있으니 다른 문제 풀고 계세요."):
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
