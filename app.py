@@ -242,18 +242,30 @@ if st.session_state.analysis_result:
     full_text = st.session_state.analysis_result
     
     # ==============================================================================
-    # [최종 수정] 잡초 제거 (Arrow & 형광) - 정밀 타격 모드
+    # [텍스트 세탁소] 형광, Arrow, 그리고 /Right 에러 박멸
     # ==============================================================================
     
-    # (1) 형광펜(백틱) 완전 박멸: 텍스트 전체에서 ` 기호 삭제
-    full_text = full_text.replace("`", "").replace("```", "")
+    # (1) [형광 제거] 백틱(`) 삭제
+    full_text = full_text.replace("`", "")
     
-    # (2) Arrow 박멸 (한글 보호 기능 추가)
-    # 설명: .arrow_down정석 처럼 붙어있어도 'arrow_down'만 떼어내고 '정석'은 남깁니다.
-    # [a-zA-Z0-9_-]* : 영어, 숫자, 언더바, 하이픈만 매칭 (한글은 매칭 안 됨)
-    # [.:#_]* : 앞부분 특수문자 처리
-    arrow_pattern = r'(?i)([.:#_]*arrow[a-zA-Z0-9_-]*[:\.]?|[↓→⇒⇔])'
-    full_text = re.sub(arrow_pattern, '', full_text)
+    # (2) [Arrow 제거] .arrow_down 등 단어 삭제
+    bad_words = [
+        ".arrow_down", "arrow_down", ":arrow_down:", 
+        "arrow_up", ":arrow_up:", ".arrow_up",
+        ":arrow:", "arrow"
+    ]
+    for word in bad_words:
+        full_text = re.sub(re.escape(word), '', full_text, flags=re.IGNORECASE)
+
+    # (3) [빨간글씨 /Right 제거] 
+    # Gemini가 화살표를 쓸 때 \Right라고 오타를 내면 빨간 에러가 뜹니다. -> 로 치환.
+    full_text = full_text.replace(r"\Right", "→")  # LaTeX 문법 에러
+    full_text = full_text.replace("/Right", "→")   # 혹시 모를 텍스트
+    full_text = full_text.replace(r"\Rightarrow", "→")
+    full_text = full_text.replace(r"\implies", "→")
+    
+    # (4) [잔반 처리] 특수기호 삭제
+    full_text = re.sub(r'[↓⇒⇔]', '', full_text)
     
     # ==============================================================================
 
@@ -269,11 +281,9 @@ if st.session_state.analysis_result:
             methods[int(m_id)] = content.strip()
             
         code_match = re.search(r"def draw(.*?)return fig", code_part, re.DOTALL)
-        # 코드 파싱 보완
         if code_match:
             final_code = "def draw" + code_match.group(1) + "return fig"
         else:
-            # 코드가 제대로 안 짤렸을 경우 대비
             final_code = code_part.replace("```python", "").replace("```", "").strip()
         
         col_left, col_right = st.columns([1.2, 1])
@@ -292,7 +302,7 @@ if st.session_state.analysis_result:
             st.markdown("---")
             
             if method_id in methods:
-                # 2. 깨끗해진 텍스트를 단계(---)별로 분리
+                # 2. 텍스트 분리
                 steps_raw = methods[method_id].split("---")
                 steps = [s.strip() for s in steps_raw if s.strip()]
                 
@@ -301,22 +311,32 @@ if st.session_state.analysis_result:
                     
                     # 제목/본문 분리
                     raw_title = lines[0].strip()
-                    # 제목에 남은 잡티(step, 대괄호 등) 제거
                     clean_title = re.sub(r'(?i)(step\s*\d*|단계|\[.*?\]|#)', '', raw_title).strip()
-                    
-                    # 제목이 비었으면 기본값 설정
                     if not clean_title: clean_title = f"과정 {i+1}"
 
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
                     
-                    # [수식 보정] LaTeX($) 렌더링을 위해 $ 앞뒤에 공백 강제 주입
+                    # [수식 보정] $ 앞뒤 공백
                     body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text)
                     
-                    with st.expander(f"STEP {i+1}: {clean_title}", expanded=True):
-                        st.markdown(body_text)
-                        if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
-                            st.session_state.step_index = i + 1
+                    # ==========================================================
+                    # [수정됨] st.expander(접는 기능) 삭제 -> 그냥 Markdown으로 출력
+                    # ==========================================================
+                    
+                    # 1. 제목 (헤더로 강조)
+                    st.markdown(f"#### 🔹 STEP {i+1}: {clean_title}")
+                    
+                    # 2. 본문 내용 (그냥 출력)
+                    st.markdown(body_text)
+                    
+                    # 3. 그래프 버튼
+                    if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
+                        st.session_state.step_index = i + 1
+                    
+                    # 4. 구분선 (접는 박스가 없으니 선으로 구분)
+                    st.markdown("---") 
+
             else:
                 st.warning("이 풀이 방법은 생성되지 않았습니다.")
 
@@ -324,22 +344,15 @@ if st.session_state.analysis_result:
         with col_right:
             st.markdown(f"### 📐 시각화 (M{method_id}-S{st.session_state.step_index})")
             try:
-                # 그래프 코드 실행 준비
                 exec_globals = {"np": np, "plt": plt, "patches": patches}
-                # 안전장치: 혹시 모를 plt 오류 방지
                 plt.close('all') 
                 exec(final_code, exec_globals)
                 
                 if "draw" in exec_globals:
                     fig = exec_globals["draw"](method_id, st.session_state.step_index)
-                    _, c_graph, _ = st.columns([1, 10, 1]) # 그래프 중앙 정렬 꽉차게
+                    _, c_graph, _ = st.columns([1, 10, 1])
                     with c_graph:
                         st.pyplot(fig)
                 else:
                     st.error("그래프 함수(draw)를 찾을 수 없습니다.")
             except Exception as e:
-                st.info("그래프를 생성하려면 왼쪽에서 단계를 선택하거나, 코드를 확인하세요.")
-
-    except Exception as e:
-        st.error("결과 처리 중 오류가 발생했습니다.")
-        st.write(traceback.format_exc())
