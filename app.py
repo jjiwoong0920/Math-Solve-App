@@ -239,7 +239,19 @@ if uploaded_file and st.session_state.analysis_result is None:
 
 # [상태 3] 분석 결과 표시
 if st.session_state.analysis_result:
+    # 1. [초강력 세탁기 가동] 원본 데이터 받자마자 무조건 필터링부터 합니다.
+    # 형님, 여기서 모든 잡동사니를 사전에 차단합니다.
     full_text = st.session_state.analysis_result
+    
+    # (1) 형광펜(백틱) 박멸: 문장 전체에서 ` 기호 삭제
+    full_text = full_text.replace("`", "").replace("```", "")
+    
+    # (2) Arrow 박멸: .arrow_down, arrow_down, :arrow:, -> 등 모든 변종 삭제
+    # 정규식 설명: (?i)대소문자무시, [.:#_]* (앞에 점이나 특수문자), arrow (핵심단어), [\w-]* (뒤에 붙는 단어)
+    arrow_clean_pattern = r'(?i)([.:#_]*arrow[\w-]*:?|[↓→])'
+    full_text = re.sub(arrow_clean_pattern, '', full_text)
+    
+    # ------------------------------------------------------------------
     
     try:
         parts = full_text.split("#CODE#")
@@ -252,8 +264,13 @@ if st.session_state.analysis_result:
         for m_id, content in matches:
             methods[int(m_id)] = content.strip()
             
-        code_match = re.search(r"```python(.*?)```", code_part, re.DOTALL)
-        final_code = code_match.group(1).strip() if code_match else code_part.strip()
+        code_match = re.search(r"def draw(.*?)return fig", code_part, re.DOTALL)
+        # 코드 파싱 보완
+        if code_match:
+            final_code = "def draw" + code_match.group(1) + "return fig"
+        else:
+            # 코드가 제대로 안 짤렸을 경우 대비
+            final_code = code_part.replace("```python", "").replace("```", "").strip()
         
         col_left, col_right = st.columns([1.2, 1])
         
@@ -271,60 +288,27 @@ if st.session_state.analysis_result:
             st.markdown("---")
             
             if method_id in methods:
-                # 1. 원본 텍스트 가져오기
-                raw_full_text = methods[method_id]
-
-                # ==========================================================
-                # [세탁기 가동] 형님, 여기서 문자열 자체를 조져버립니다.
-                # ==========================================================
-                
-                # 1. [형광펜(백틱) 삭제]
-                # 문장 전체에서 백틱(`) 기호를 아예 없애버립니다. (형광이 생길 수가 없음)
-                cleaned_text = raw_full_text.replace("`", "").replace("```", "")
-
-                # 2. [Arrow 삭제] 정규식 강화
-                # .arrow_down, _arrow, arrow_down, :arrow: 등 모든 변종 패턴 삭제
-                # (?i) : 대소문자 무시
-                # [\.\s#_:-]* : 앞에 붙은 점(.), 공백, 샵, 언더바, 콜론 등 특수문자
-                # arrow : 핵심 단어
-                # [\w_-]* : 뒤에 붙는 글자들 (down, up, style 등)
-                arrow_pattern = r'(?i)([\.\s#_:-]*arrow[\w_-]*[\.\s#_:-]*|[↓→])'
-                cleaned_text = re.sub(arrow_pattern, '', cleaned_text)
-
-                # 3. [잡동사니 삭제] 제목에 들어가는 대괄호 찌꺼기 등
-                cleaned_text = re.sub(r'\[.*?\]', '', cleaned_text)
-
-                # ==========================================================
-
                 # 2. 깨끗해진 텍스트를 단계(---)별로 분리
-                steps_raw = cleaned_text.split("---")
+                steps_raw = methods[method_id].split("---")
                 steps = [s.strip() for s in steps_raw if s.strip()]
                 
                 for i, step_text in enumerate(steps):
                     lines = step_text.split('\n')
                     
-                    # 제목과 본문 분리
+                    # 제목/본문 분리
                     raw_title = lines[0].strip()
-                    # 제목이 비었거나 이상하면 기본값
-                    if not raw_title or len(raw_title) < 2: 
-                        raw_title = "풀이 과정 및 해석"
-                    
-                    # 본문 합치기
+                    # 제목에 남은 잡티 제거 (step, #, 대괄호)
+                    clean_title = re.sub(r'(?i)(step\s*\d*|단계|\[.*?\]|#)', '', raw_title).strip()
+                    if not clean_title: clean_title = f"과정 {i+1}"
+
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
                     
-                    # [최종 확인 사살] 제목/본문에 혹시 남은 찌꺼기 제거
-                    clean_title = raw_title.replace("step", "").replace("Step", "").strip()
-                    
                     # [수식 보정] LaTeX($) 렌더링을 위해 $ 앞뒤에 공백 강제 주입
-                    # (이게 없으면 수식이 텍스트랑 붙어서 깨져 보임)
                     body_text = re.sub(r'(?<!\$)\$(?!\$)', ' $ ', body_text)
                     
-                    # UI 출력
                     with st.expander(f"STEP {i+1}: {clean_title}", expanded=True):
                         st.markdown(body_text)
-                        
-                        # 그래프 버튼
                         if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
                             st.session_state.step_index = i + 1
             else:
@@ -334,21 +318,24 @@ if st.session_state.analysis_result:
         with col_right:
             st.markdown(f"### 📐 시각화 (M{method_id}-S{st.session_state.step_index})")
             try:
+                # 그래프 코드 실행 준비
                 exec_globals = {"np": np, "plt": plt, "patches": patches}
+                # 안전장치: 혹시 모를 plt 오류 방지
+                plt.close('all') 
                 exec(final_code, exec_globals)
                 
                 if "draw" in exec_globals:
                     fig = exec_globals["draw"](method_id, st.session_state.step_index)
-                    
-                    # [그래프 사이즈 고정] 중앙 정렬
-                    _, c_graph, _ = st.columns([1, 3, 1])
+                    _, c_graph, _ = st.columns([1, 10, 1]) # 그래프 중앙 정렬 꽉차게
                     with c_graph:
                         st.pyplot(fig)
                 else:
-                    st.error("그래프 함수를 찾을 수 없습니다.")
+                    st.error("그래프 함수(draw)를 찾을 수 없습니다.")
             except Exception as e:
-                st.info("그래프를 생성하려면 왼쪽에서 단계를 선택하세요.")
+                st.info("그래프를 생성하려면 왼쪽에서 단계를 선택하거나, 코드를 확인하세요.")
+                # 디버깅용 (필요시 주석 해제)
+                # st.code(final_code)
 
     except Exception as e:
         st.error("결과 처리 중 오류가 발생했습니다.")
-        st.write(e)
+        st.write(traceback.format_exc())
