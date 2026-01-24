@@ -8,7 +8,7 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (절대 안 건드림)
+# 1. 디자인 & 스타일 (형님 컨펌 완료)
 # ==========================================
 st.set_page_config(layout="wide", page_title="2호기: 수학의 정점")
 
@@ -84,6 +84,7 @@ st.markdown("""
         color: #00C4B4 !important;
     }
     
+    /* 앱 초기화 버튼 스타일링 */
     section[data-testid="stSidebar"] .stButton button p {
         color: #000000 !important;
         font-weight: 400 !important;
@@ -151,13 +152,10 @@ if uploaded_file and st.session_state.analysis_result is None:
         if st.button("🚀 3가지 관점으로 완벽 분석 시작", type="primary"):
             with st.spinner("🕵️ 1타 강사의 시선으로 분석 중입니다..."):
                 try:
-                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    model_name = next((m for m in available_models if 'flash' in m), 
-                                      next((m for m in available_models if 'pro' in m), available_models[0]))
+                    # [수정됨] 모델 검색 제거 -> 바로 연결 (쿼터 절약)
+                    # gemini-1.5-flash 모델로 고정하여 속도와 안정성 확보
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    model = genai.GenerativeModel(model_name)
-                    
-                    # 프롬프트: 그래프 aspect ratio 정사각형(6,6)으로 고정 요청
                     prompt = """
                     너는 대한민국 1타 수학 강사야. 이 문제를 **3가지 방식**으로 풀이해.
                     
@@ -206,9 +204,13 @@ if uploaded_file and st.session_state.analysis_result is None:
                     
                 except Exception as e:
                     st.error(f"분석 중 오류가 발생했습니다: {e}")
-                    st.write(traceback.format_exc())
+                    # 할당량 초과 시 친절한 안내 메시지 추가
+                    if "429" in str(e):
+                        st.warning("🚨 구글 무료 서버 사용량이 일시적으로 몰렸습니다. 약 1분만 쉬었다가 다시 버튼을 눌러주세요!")
+                    else:
+                        st.write(traceback.format_exc())
 
-# [상태 3] 분석 결과 표시 (좌: 풀이 / 우: 그래프)
+# [상태 3] 분석 결과 표시
 if st.session_state.analysis_result:
     full_text = st.session_state.analysis_result
     
@@ -226,7 +228,6 @@ if st.session_state.analysis_result:
         code_match = re.search(r"```python(.*?)```", code_part, re.DOTALL)
         final_code = code_match.group(1).strip() if code_match else code_part.strip()
         
-        # 화면 분할 (1.2 : 1 비율)
         col_left, col_right = st.columns([1.2, 1])
         
         # === [왼쪽 패널: 풀이 설명] ===
@@ -249,27 +250,18 @@ if st.session_state.analysis_result:
                 for i, step_text in enumerate(steps):
                     lines = step_text.split('\n')
                     
-                    # 1. [제목 수술] 화살표(arrow_down) 글씨를 빈칸으로 치환해서 삭제
+                    # [청소] 화살표, 대괄호, 잡동사니 삭제
                     raw_title = lines[0].strip()
-                    # 정규식(re)을 사용해 arrow_down, 대괄호[], 밑줄(_) 등을 깨끗하게 지움
                     import re
                     clean_title = re.sub(r'(?i)(arrow_down|:arrow_down:|_|step|\[.*?\])', '', raw_title).strip()
                     
-                    # 2. [본문 수술] 형광펜(백틱) 제거 + 2.png 스타일 수식 적용
+                    # [청소] 백틱(`) -> 달러($) 변환 (형광펜 제거)
                     body_lines = lines[1:]
                     body_text = '\n'.join(body_lines).strip()
+                    body_text = body_text.replace('`', '$').replace('$', ' $ ')
                     
-                    # ★ 핵심 마법: ` (백틱)을 $ (달러)로 바꿉니다.
-                    # 이러면 '검은 박스'가 사라지고 -> '2.png 같은 예쁜 수식'으로 변합니다.
-                    body_text = body_text.replace('`', '$')
-                    
-                    # [안전장치] 수식 렌더링이 깨지지 않게 $ 기호 앞뒤로 띄어쓰기를 줍니다.
-                    body_text = body_text.replace('$', ' $ ') 
-                    
-                    # 화면 출력
                     with st.expander(f"STEP {i+1}: {clean_title}", expanded=True):
                         st.markdown(body_text)
-                        
                         if st.button(f"📊 그래프 보기 (Step {i+1})", key=f"btn_{method_id}_{i}"):
                             st.session_state.step_index = i + 1
             else:
@@ -285,8 +277,7 @@ if st.session_state.analysis_result:
                 if "draw" in exec_globals:
                     fig = exec_globals["draw"](method_id, st.session_state.step_index)
                     
-                    # [그래프 사이즈 60% 고정]
-                    # 1(여백) : 3(그래프) : 1(여백) 비율 = 전체 5중의 3 = 딱 60%
+                    # [그래프 사이즈 고정] 중앙 정렬
                     _, c_graph, _ = st.columns([1, 3, 1])
                     with c_graph:
                         st.pyplot(fig)
