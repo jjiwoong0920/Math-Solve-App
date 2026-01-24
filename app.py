@@ -8,9 +8,9 @@ import re
 import traceback
 
 # ==========================================
-# 1. 디자인 & 스타일 (형님 컨펌 완료)
+# 1. 디자인 & 스타일 (최승규 2호기 전용)
 # ==========================================
-st.set_page_config(layout="wide", page_title="2호기: 수학의 정점")
+st.set_page_config(layout="wide", page_title="최승규 2호기")
 
 st.markdown("""
 <style>
@@ -152,8 +152,7 @@ if uploaded_file and st.session_state.analysis_result is None:
         if st.button("🚀 3가지 관점으로 완벽 분석 시작", type="primary"):
             with st.spinner("🕵️ 1타 강사의 시선으로 분석 중입니다..."):
                 try:
-                    # [수정됨] 429 에러에서 확인된 'gemini-2.5-flash'로 모델명 확정!
-                    # 검색 과정 없이 바로 연결하므로 쿼터가 절약되고, 404도 안 뜹니다.
+                    # [최종 확정] 무조건 Gemini 2.5 Flash 사용. 딴 거 안 씀.
                     model = genai.GenerativeModel('gemini-2.5-flash')
                     
                     prompt = """
@@ -203,19 +202,10 @@ if uploaded_file and st.session_state.analysis_result is None:
                     st.rerun()
                     
                 except Exception as e:
-                    # 에러 처리 강화
+                    # 429 에러(과속) 발생 시 경고
                     if "429" in str(e):
                         st.error("🚨 구글 무료 서버 사용량이 꽉 찼습니다. (1분당 20회 제한)")
                         st.warning("약 1분 정도만 기다렸다가 다시 버튼을 눌러주세요!")
-                    elif "404" in str(e):
-                         # 만약 2.5도 없다고 하면 최후의 수단으로 1.5-pro 시도 (자동 fallback)
-                        try:
-                             model = genai.GenerativeModel('gemini-1.5-pro')
-                             response = model.generate_content([prompt, image])
-                             st.session_state.analysis_result = response.text
-                             st.rerun()
-                        except:
-                             st.error(f"모델 연결 오류: {e}")
                     else:
                         st.error(f"분석 중 오류가 발생했습니다: {e}")
                         st.write(traceback.format_exc())
@@ -298,5 +288,4 @@ if st.session_state.analysis_result:
 
     except Exception as e:
         st.error("결과 처리 중 오류가 발생했습니다.")
-
         st.write(e)
