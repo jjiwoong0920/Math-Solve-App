@@ -5,7 +5,7 @@ from PIL import Image
 # ==========================================
 # 0. 기본 설정 & 보안 시스템
 # ==========================================
-st.set_page_config(layout="centered", page_title="최승규 2호기 - Auto Pro")
+st.set_page_config(layout="centered", page_title="최승규 2호기 - Model Selector")
 
 # 세션 상태 초기화
 if 'authenticated' not in st.session_state:
@@ -18,7 +18,7 @@ if not st.session_state.authenticated:
     with col2:
         password = st.text_input("Access Code", type="password", label_visibility="collapsed", placeholder="비밀번호 입력")
         if st.button("Login", use_container_width=True):
-            if password == "71140859": # 비밀번호
+            if password == "71140859": 
                 st.session_state.authenticated = True
                 st.rerun()
             else:
@@ -35,65 +35,51 @@ st.markdown("""
     
     .stApp { background-color: #131314 !important; color: #ffffff !important; }
     h1, h2, h3, h4, p, li { color: #ffffff !important; }
-    /* 수식 흰색 통일 */
     .katex { font-size: 1.15em !important; color: #ffffff !important; }
     section[data-testid="stSidebar"] { background-color: #00C4B4 !important; }
     section[data-testid="stSidebar"] * { color: #ffffff !important; }
-    
     div.stButton > button { background-color: #333333; color: white; border: 1px solid #555555; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. API 설정 및 [핵심] Pro 모델 자동 탐지
+# 2. API 설정 및 [핵심] 모델 리스트 가져오기
 # ==========================================
 if 'analysis_result' not in st.session_state:
     st.session_state.analysis_result = None
-
-# 사용 가능한 모델 찾기 함수
-def find_best_pro_model():
-    try:
-        # 사용 가능한 모델 리스트 조회
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 1순위: 1.5 Pro 계열 (최신)
-        for m in models:
-            if 'gemini-1.5-pro' in m:
-                return m
-        # 2순위: 1.0 Pro 계열 (안정)
-        for m in models:
-            if 'gemini-pro' in m and 'vision' not in m: # 비전 전용 제외
-                return m
-        # 3순위: 그냥 Pro 들어간 거 아무거나
-        for m in models:
-            if 'pro' in m:
-                return m
-                
-        return 'gemini-1.5-flash' # 정 없으면 플래시라도 (비상용)
-    except:
-        return 'gemini-pro' # API 에러 시 기본값
 
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
     
-    # [핵심] 형님 계정에서 되는 '진짜 Pro' 모델 자동 검색
-    target_model = find_best_pro_model()
+    # [핵심] 형님 계정에서 사용 가능한 모든 모델 긁어오기
+    available_models = []
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            available_models.append(m.name)
+            
+    # Pro 모델을 우선적으로 보여주기 위한 정렬
+    available_models.sort(key=lambda x: 'pro' not in x) 
     
-    # 설정: 창의성 0.0
-    generation_config = {"temperature": 0.0, "top_p": 1, "top_k": 1}
-    
-except Exception:
-    st.sidebar.error("⚠️ API 키 설정이 필요합니다.")
-    target_model = "Unknown"
+except Exception as e:
+    st.sidebar.error("⚠️ API 키 오류: 키를 확인해주세요.")
+    available_models = ["Error"]
 
 # ==========================================
-# 3. 사이드바
+# 3. 사이드바 (모델 선택 기능 추가)
 # ==========================================
 with st.sidebar:
     st.title("최승규 2호기")
-    # 현재 자동으로 잡은 모델 이름 표시
-    st.caption(f"Connected: {target_model}") 
+    st.markdown("---")
+    
+    # [여기입니다 형님] 모델을 직접 고르세요 (Pro 선택 필수)
+    st.caption("사용할 두뇌(Model) 선택:")
+    selected_model = st.selectbox(
+        "권장: gemini-1.5-pro 계열", 
+        available_models,
+        index=0 if available_models else None
+    )
+    
     st.markdown("---")
     uploaded_file = st.file_uploader("문제 업로드", type=["jpg", "png", "jpeg"], key="problem_uploader")
     
@@ -106,15 +92,19 @@ with st.sidebar:
 # 4. 메인 로직
 # ==========================================
 if not uploaded_file:
-    st.info(f"👈 문제 사진을 올려주세요. **{target_model}** 모델이 자동으로 연결되었습니다.")
+    st.info(f"👈 사이드바에서 **'gemini-1.5-pro'** 가 포함된 모델을 선택하고 사진을 올려주세요.")
     st.stop()
 
 image = Image.open(uploaded_file)
 
 if st.session_state.analysis_result is None:
-    with st.spinner(f"🧠 **{target_model} 가동 중... (1타 강사 빙의)**"):
+    with st.spinner(f"🧠 **{selected_model} 가동 중... (정확도 최우선)**"):
         try:
-            model = genai.GenerativeModel(target_model, generation_config=generation_config)
+            # 설정: 창의성 0.0 (기계적 정확함)
+            generation_config = {"temperature": 0.0, "top_p": 1, "top_k": 1}
+            
+            # 선택된 모델로 로딩
+            model = genai.GenerativeModel(selected_model, generation_config=generation_config)
             
             prompt = """
             너는 대한민국 수능 수학 1타 강사야. 
@@ -123,7 +113,7 @@ if st.session_state.analysis_result is None:
             **[작성 원칙 - 리얼 제미나이 스타일 완벽 재현]**
 
             1. **제목 포맷 (핵심 개념 명시 - 가장 중요)**:
-               - 단순 '풀이'라고 쓰지 마. [핵심 개념]을 제목에 박아넣어.
+               - 단순 '풀이' 금지. [핵심 개념]을 제목에 박아넣어.
                - 예시:
                  **Method 1: 차함수와 인수정리 활용 (정석 & 추천)**
                  **Method 2: 극대·극소의 차 공식 활용 (빠른 풀이)**
@@ -140,6 +130,7 @@ if st.session_state.analysis_result is None:
                - 문장은 명사형(~함, ~임) 또는 간결한 문장으로 끝내. 
 
             4. **내용**:
+               - **정답과 풀이 과정의 정확성이 생명이야.** (계산 실수 절대 금지)
                - 오직 문제 풀이 텍스트만 출력해.
                - 논리적 비약 없이 꽉 찬 해설을 보여줘.
             """
@@ -150,7 +141,6 @@ if st.session_state.analysis_result is None:
             
         except Exception as e:
             st.error(f"⚠️ **오류 발생**: {e}")
-            st.write("자동 연결된 모델이 문제를 일으켰습니다. API 키 권한을 확인해주세요.")
             st.stop()
 
 # ==========================================
