@@ -5,7 +5,7 @@ from PIL import Image
 # ==========================================
 # 0. 기본 설정 & 보안 시스템
 # ==========================================
-st.set_page_config(layout="centered", page_title="최승규 2호기 - Gemini 3.0 Only")
+st.set_page_config(layout="centered", page_title="최승규 2호기")
 
 # 세션 상태 초기화
 if 'authenticated' not in st.session_state:
@@ -115,13 +115,12 @@ except Exception as e:
 # ==========================================
 with st.sidebar:
     st.title("최승규 2호기")
+    st.caption("최승규T 스타일 문제풀이 사이트")
     st.markdown("---")
     
-    if target_model:
-        st.success(f"✅ **{target_model}**\n\n모델이 고정되었습니다.")
-    else:
+    if not target_model:
         st.error("🚫 **3.0 Pro 모델 없음**\n\n형님 계정에서 3.0 모델을 찾을 수 없습니다.")
-        st.stop() # 3.0 없으면 아예 작동 중지 (형님 명령)
+        st.stop()
         
     st.markdown("---")
     uploaded_file = st.file_uploader("문제 업로드", type=["jpg", "png", "jpeg"], key="problem_uploader")
@@ -135,7 +134,7 @@ with st.sidebar:
 # 4. 메인 로직
 # ==========================================
 if not uploaded_file:
-    st.info(f"👈 문제 사진을 올려주세요. **Gemini 3.0 Pro**가 대기 중입니다.")
+    st.info(f"👈 문제 사진을 올려주세요. **최승규 2호기**가 대기 중입니다.")
     st.stop()
 
 image = Image.open(uploaded_file)
@@ -155,8 +154,14 @@ if st.session_state.analysis_result is None:
             주어진 문제를 **반드시 아래 가이드라인에 맞춰서** 풀이해.
             형식은 제미나이 웹사이트의 깔끔한 출력 방식을 완벽하게 따라해야 해.
 
+            **[0. 절대 금지 사항 (Start Rule)]**
+            * 서론, 인사말, 분석 시작 멘트 전부 생략해.
+            * **무조건 첫 줄은 '### Method 1: ...' 제목으로 시작해.**
+
             **[1. 제목 및 구조 (Header Style)]**
-            * 각 풀이 방법은 `### Method 1: ...` (헤더 3)를 사용하여 굵고 크게 표시해.
+            * `### Method 1: [핵심 개념] (정석 풀이)`
+            * `### Method 2: [빠른 풀이 공식/스킬]` 
+            * `### Method 3: [직관/그래프 해석]`
             * 제목에는 반드시 **핵심 수학 개념**을 포함해.
               * 예: **### Method 1: 차함수와 인수정리 활용 (정석 & 추천)**
               * 예: **### Method 2: 비율 관계를 이용한 빠른 풀이**
@@ -164,14 +169,16 @@ if st.session_state.analysis_result is None:
             **[2. 본문 서술 방식 (Bullet Points)]**
             * 줄글로 길게 늘어쓰지 마. (가독성 떨어짐)
             * **반드시 `Step` 별로 나누고, 그 안에서 `글머리 기호(Bullet point)`를 사용해.**
+            * **핵심 논리 위주**: "개형은 알지? 바로 조건 (가)를 보자." 같은 뉘앙스로, **조건 해석 -> 식 세우기** 과정을 군더더기 없이 연결해.
             * 예시:
               **Step 1: 조건 해석**
-              * 조건 (가)에 따르면 $f(x)$는...
-              * 따라서 그래프의 개형은...
+              * $g(x)$가 불연속일 가능성 체크...
+              * 따라서 $f(x)$는 여기서 접해야 함.
+            * 구구절절한 문장보다는 명사형 종결(~함, ~임)이나 간결한 문장 사용.
             
             **[3. 수식 표현 (LaTeX Layout)]**
             * 문장 중간의 변수나 간단한 식은 `$ f(x) $` 와 같이 인라인으로 써.
-            * **계산 과정, 중요 방정식, 최종 정답은 반드시 `$$ ... $$` (Display Math)를 써서 별도 줄에 중앙 정렬해.**
+            * **계산 과정, 중요 방정식, 최종 정답은 반드시 `$$ ... $$` (Display Math)를 써서 별도 줄에 중앙 정렬해.** (이게 가독성 핵심)
             * 분수는 무조건 `\\dfrac`을 사용해서 크게 보여줘.
             * 수식 위아래로 빈 줄을 하나씩 둬서 시원시원하게 보이게 해.
 
