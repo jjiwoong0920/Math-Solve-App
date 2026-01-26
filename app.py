@@ -3,26 +3,44 @@ import google.generativeai as genai
 from PIL import Image
 
 # ==========================================
-# 0. 기본 설정 & 보안 시스템
+# 0. 기본 설정 & 보안 시스템 (명단 확인형)
 # ==========================================
-st.set_page_config(layout="centered", page_title="최승규 2호기")
+st.set_page_config(layout="centered", page_title="최승규 2호기 - Master Edition")
+
+# [형님, 여기가 출석부입니다]
+# 원하는 학생의 "아이디": "비밀번호" 형식으로 계속 추가하시면 됩니다.
+USER_DB = {
+    "junhee": "8135",   
+    "student": "1234",   
+    "student2": "1234",   
+    "student3": "1234",   
+    "student4": "1234",   
+    "student5": "1234",   
+    "seungkyu": "71140859"    # 형님 전용 마스터키
+}
 
 # 세션 상태 초기화
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 
-# [보안] 로그인 화면
+# [보안] 로그인 화면 (아이디 & 비번 체크)
 if not st.session_state.authenticated:
-    st.markdown("<br><br><h2 style='text-align: center; color: white;'>🔒 접근 승인 요청</h2>", unsafe_allow_html=True)
+    st.markdown("<br><br><h2 style='text-align: center; color: white;'>🔒 최승규T 수강생 전용</h2>", unsafe_allow_html=True)
+    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        password = st.text_input("Access Code", type="password", label_visibility="collapsed", placeholder="비밀번호 입력")
-        if st.button("Login", use_container_width=True):
-            if password == "71140859": 
+        # 입력창 2개 (아이디, 비밀번호)
+        input_id = st.text_input("아이디 (ID)", placeholder="부여받은 ID 입력")
+        input_pw = st.text_input("비밀번호 (PW)", type="password", placeholder="비밀번호 입력")
+        
+        if st.button("로그인 (Login)", use_container_width=True):
+            # 명단에 있고 & 비밀번호가 맞는지 확인
+            if input_id in USER_DB and USER_DB[input_id] == input_pw:
                 st.session_state.authenticated = True
+                st.success(f"환영합니다, {input_id}님!")
                 st.rerun()
             else:
-                st.error("🚫 접근 거부")
+                st.error("🚫 접근 거부: 아이디 또는 비밀번호를 확인하세요.")
     st.stop()
 
 # ==========================================
@@ -116,6 +134,8 @@ except Exception as e:
 with st.sidebar:
     st.title("최승규 2호기")
     st.caption("최승규T 스타일 문제풀이 사이트")
+    st.caption("이해되지 않는 부분은 최승규T 에게 오세요")
+    st.caption("질문 1회당 비용이 듭니다. 필요한 것만, 알차게 씁시다")
     st.markdown("---")
     
     if not target_model:
